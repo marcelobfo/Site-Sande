@@ -1,0 +1,8 @@
+{
+  "name": "Professora Protagonista - Lax Serviços Educacionais",
+  "description": "Plataforma educacional e clube de assinatura para professores transformarem suas práticas pedagógicas com o Método Protagonizar.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
