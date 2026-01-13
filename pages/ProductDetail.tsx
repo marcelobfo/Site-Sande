@@ -59,12 +59,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     fetchProduct();
   }, [productId, onNavigate]);
 
-  const handleCheckout = async (e?: React.FormEvent, skipPreFill = false) => {
+  const handleCheckout = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!product) return;
     setErrorState({ message: '', type: null });
 
-    // Se a API Key do Asaas estiver presente, tentamos o checkout dinâmico.
     if (content.asaasapikey) {
       setPaying(true);
       try {
@@ -72,40 +71,31 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           ? 'https://sandbox.asaas.com/api/v3' 
           : 'https://api.asaas.com/v3';
 
-        // Estrutura de Payload baseada na sugestão do usuário e compatibilidade v3
-        const payload: any = {
-          billingType: "CREDIT_CARD", // Aceita CREDIT_CARD, BOLETO, PIX ou UNDEFINED
+        // Mapeamento exato conforme sugestão técnica para manter integridade
+        const payload = {
+          billingType: "CREDIT_CARD", // Pode ser CREDIT_CARD, BOLETO ou PIX
           chargeType: "DETACHED",
-          minutesToExpire: 120,
-          items: [
-            {
-              name: product.title,
-              description: `Material Digital: ${product.title}`,
-              value: Number(product.price),
-              quantity: 1
-            }
-          ],
+          customerData: {
+            name: customerData.name,
+            cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
+            email: customerData.email,
+            phone: customerData.phone.replace(/\D/g, ''),
+            address: customerData.address,
+            addressNumber: customerData.addressNumber,
+            complement: customerData.complement,
+            province: customerData.province,
+            postalCode: customerData.postalCode.replace(/\D/g, '')
+          },
+          items: [{
+            name: product.title,
+            value: Number(product.price),
+            quantity: 1
+          }],
           callback: {
             successUrl: `${window.location.origin}/#thank-you`,
             autoRedirect: true
           }
         };
-
-        // Adiciona dados do cliente se preenchidos
-        if (!skipPreFill && customerData.name && customerData.email) {
-          payload.customerData = {
-            name: customerData.name,
-            email: customerData.email,
-            cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
-            phone: customerData.phone.replace(/\D/g, ''),
-            address: customerData.address,
-            addressNumber: customerData.addressNumber,
-            complement: customerData.complement,
-            postalCode: customerData.postalCode.replace(/\D/g, ''),
-            province: customerData.province,
-            city: customerData.city
-          };
-        }
 
         const response = await fetch(`${baseUrl}/checkouts`, {
           method: 'POST',
@@ -123,21 +113,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           window.open(data.url, '_blank');
           setShowBillingForm(false);
         } else {
-          const errorMsg = data.errors?.[0]?.description || 'Erro ao processar checkout.';
+          const errorMsg = data.errors?.[0]?.description || 'Ocorreu um erro ao processar o checkout.';
           setErrorState({ message: errorMsg, type: 'api' });
         }
       } catch (err: any) {
-        console.error('Erro de requisição:', err);
+        console.error('Falha na integração:', err);
         
-        // Detecção específica de erro de CORS (Failed to fetch)
-        if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
+        // Se falhar o fetch (CORS/Rede), oferecemos o fallback imediato via WhatsApp
+        if (err.name === 'TypeError' || err.message.includes('fetch')) {
           setErrorState({ 
-            message: 'O checkout automático foi bloqueado pelo seu navegador (CORS). Isso é uma medida de segurança comum. Por favor, clique abaixo para finalizar via WhatsApp com nosso suporte!', 
+            message: 'O sistema de checkout automático encontrou uma restrição de segurança (CORS). Não se preocupe, seus dados foram salvos! Clique abaixo para finalizar seu pedido diretamente no WhatsApp.', 
             type: 'cors' 
           });
         } else {
           setErrorState({ 
-            message: 'Falha na conexão com o sistema de pagamentos.', 
+            message: 'Erro de conexão. Verifique sua internet ou tente novamente mais tarde.', 
             type: 'network' 
           });
         }
@@ -147,7 +137,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
       return;
     }
 
-    // Fallback padrão se não houver API Key
+    // Fallback manual caso não haja API configurada
     redirectToWhatsApp();
   };
 
@@ -155,13 +145,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     if (!product) return;
     const msg = `Olá! Gostaria de adquirir o material: *${product.title}* (R$ ${Number(product.price).toFixed(2)}).
 
-*Meus Dados:*
-Nome: ${customerData.name || 'Pendente'}
-E-mail: ${customerData.email || 'Pendente'}
-CPF/CNPJ: ${customerData.cpfCnpj || 'Pendente'}
-WhatsApp: ${customerData.phone || 'Pendente'}
+*Meus Dados para o Pedido:*
+Nome: ${customerData.name || 'Não informado'}
+E-mail: ${customerData.email || 'Não informado'}
+CPF/CNPJ: ${customerData.cpfCnpj || 'Não informado'}
+WhatsApp: ${customerData.phone || 'Não informado'}
+CEP: ${customerData.postalCode || 'Não informado'}
+Endereço: ${customerData.address}, ${customerData.addressNumber} - ${customerData.province}
 
-Pode me enviar o link de pagamento?`;
+Como posso proceder com o pagamento?`;
 
     window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
   };
@@ -240,10 +232,10 @@ Pode me enviar o link de pagamento?`;
                     className="group/btn w-full bg-brand-orange text-white py-8 rounded-[2.5rem] font-black text-2xl lg:text-3xl shadow-2xl hover:bg-brand-dark transition-all active:scale-95 flex items-center justify-center gap-4"
                   >
                     <ShoppingCart size={32} /> 
-                    ADQUIRIR AGORA
+                    ADQUIRIR MATERIAL
                   </button>
                   <p className="text-gray-400 text-[11px] font-bold text-center flex items-center justify-center gap-2">
-                    <ShieldCheck size={16} className="text-green-500" /> Transação Segura via Asaas
+                    <ShieldCheck size={16} className="text-green-500" /> Pagamento Processado via Asaas
                   </p>
                 </div>
               </div>
@@ -256,7 +248,7 @@ Pode me enviar o link de pagamento?`;
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
           <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
             <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Finalizar Pedido</h3>
+              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Dados do Pedido</h3>
               <button onClick={() => setShowBillingForm(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all">
                 <X size={28} className="text-gray-300" />
               </button>
@@ -270,15 +262,13 @@ Pode me enviar o link de pagamento?`;
                     <span className="text-sm leading-tight">{errorState.message}</span>
                   </div>
                   {(errorState.type === 'cors' || errorState.type === 'network') && (
-                    <div className="space-y-4">
-                      <button 
-                        type="button"
-                        onClick={redirectToWhatsApp}
-                        className="w-full bg-green-500 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-600 transition-all shadow-lg shadow-green-100"
-                      >
-                        <MessageCircle size={20} /> FINALIZAR NO WHATSAPP
-                      </button>
-                    </div>
+                    <button 
+                      type="button"
+                      onClick={redirectToWhatsApp}
+                      className="w-full bg-green-500 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-600 transition-all shadow-lg shadow-green-100"
+                    >
+                      <MessageCircle size={20} /> FINALIZAR NO WHATSAPP
+                    </button>
                   )}
                 </div>
               )}
@@ -288,9 +278,9 @@ Pode me enviar o link de pagamento?`;
                   <BillingInput label="Nome Completo" icon={<User size={18}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
                 </div>
                 <BillingInput label="E-mail" icon={<Mail size={18}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
-                <BillingInput label="CPF ou CNPJ" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
-                <BillingInput label="WhatsApp" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
-                <BillingInput label="CEP" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
+                <BillingInput label="WhatsApp (DDD + Número)" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CEP (Só números)" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Endereço" icon={<MapPin size={18}/>} name="address" value={customerData.address} onChange={handleInputChange} required />
                 </div>
@@ -304,9 +294,9 @@ Pode me enviar o link de pagamento?`;
                 <button 
                   type="submit"
                   disabled={paying}
-                  className="flex-grow bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3"
+                  className="flex-grow bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
-                  {paying ? <Loader2 className="animate-spin" /> : <><ShoppingCart size={24}/> IR PARA PAGAMENTO</>}
+                  {paying ? <Loader2 className="animate-spin" /> : <><ShoppingCart size={24}/> IR PARA O PAGAMENTO</>}
                 </button>
                 <button 
                   type="button"

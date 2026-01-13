@@ -70,14 +70,14 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         if (response.ok && data.url) {
           window.open(data.url, '_blank');
         } else {
-          const msg = data.errors?.[0]?.description || 'Erro ao gerar assinatura.';
+          const msg = data.errors?.[0]?.description || 'Erro ao gerar checkout da assinatura.';
           setClubError({ message: msg, type: 'api' });
         }
       } catch (err: any) {
-        console.error('Falha no fetch do clube:', err);
-        if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
+        console.error('Falha crítica no clube:', err);
+        if (err.name === 'TypeError' || err.message.includes('fetch')) {
           setClubError({ 
-            message: "Conexão bloqueada por segurança do navegador (CORS). Clique no botão do WhatsApp para assinar agora!", 
+            message: "A conexão com o servidor de pagamentos foi bloqueada por segurança (CORS). Mas não pare agora! Você pode assinar via WhatsApp em segundos.", 
             type: 'cors' 
           });
         } else {
@@ -92,7 +92,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
   };
 
   const redirectToWhatsApp = () => {
-    const msg = `Olá! Quero assinar o *Clube Protagonista* (R$ ${Number(content.clubeprice).toFixed(2)}/ano) e liberar todos os materiais. Pode me enviar o link de assinatura?`;
+    const msg = `Olá Professora Sande! Quero assinar o *Clube Protagonista* (R$ ${Number(content.clubeprice).toFixed(2)}/ano) e garantir acesso a todos os materiais. Como posso realizar meu pagamento?`;
     window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -124,7 +124,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
             </div>
 
             {clubError && (
-              <div className="mb-6 p-6 bg-red-50 text-red-600 rounded-[2rem] flex flex-col gap-4 border border-red-100">
+              <div className="mb-6 p-6 bg-red-50 text-red-600 rounded-[2rem] flex flex-col gap-4 border border-red-100 animate-in slide-in-from-top">
                 <div className="flex items-start gap-3">
                   <AlertCircle size={20} className="shrink-0 mt-0.5" />
                   <p className="text-xs font-bold leading-tight">{clubError.message}</p>
@@ -147,7 +147,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         </div>
       </section>
 
-      {/* Vitrine... (restante do código mantido igual) */}
+      {/* Materials Vitrine */}
       <section className="max-w-7xl mx-auto px-4 mt-24">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16">
           <div>
