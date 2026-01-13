@@ -14,6 +14,7 @@ import { Briefing } from './pages/Briefing';
 import { ThankYou } from './pages/ThankYou';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
+import { CookieConsent } from './components/CookieConsent';
 import { View, SiteContent } from './types';
 import { MessageCircle } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -148,6 +149,7 @@ const App: React.FC = () => {
       <Header currentView={currentView} onNavigate={navigate} content={content} />
       <main className="flex-grow">{renderView()}</main>
       <Footer onNavigate={navigate} content={content} />
+      <CookieConsent onNavigate={navigate} />
       <a
         href={`https://wa.me/${content.supportwhatsapp}`}
         target="_blank"
@@ -160,5 +162,4 @@ const App: React.FC = () => {
   );
 };
 
-// Fix: Exporting App component as default export to satisfy index.tsx import
 export default App;

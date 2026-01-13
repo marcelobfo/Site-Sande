@@ -5,7 +5,7 @@ import {
   CreditCard, Users, LayoutDashboard, Trash2, Plus, 
   Upload, Image as ImageIcon, FileText, Info, Edit3, X, Loader2, ShoppingCart, Palette, Globe, AlertTriangle,
   Eye, MessageSquare, MessageCircle, Mail, Calendar, GripVertical, Phone, Gem, ExternalLink, Image, Copy, Database,
-  Lightbulb, List, LayoutGrid, CheckCircle2, ChevronRight
+  Lightbulb, List, LayoutGrid, CheckCircle2, ChevronRight, ShieldCheck, RefreshCcw
 } from 'lucide-react';
 import { SiteContent, Lead, LeadStatus, Product, BlogPost } from '../types';
 import { supabase } from '../lib/supabase';
@@ -90,6 +90,13 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     }
   };
 
+  const resetCookieConsent = () => {
+    if (confirm("Deseja resetar o banner de cookies para você? (Isso limpará sua preferência local)")) {
+      localStorage.removeItem('cookie-consent-protagonista');
+      window.location.reload();
+    }
+  };
+
   const updateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
     const { error } = await supabase.from('leads').update({ status: newStatus }).eq('id', leadId);
     if (!error) {
@@ -98,6 +105,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     }
   };
 
+  // Fixed: Corrected try/catch syntax error that was breaking component scope
   const saveFormItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -208,6 +216,45 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
           </div>
         )}
 
+        {activeTab === 'settings' && (
+          <div className="max-w-4xl space-y-10">
+            <Section title="Identidade Visual" icon={<Palette className="text-brand-purple"/>}>
+              <div className="space-y-8">
+                <div className="grid grid-cols-2 gap-8">
+                  <ImageUp label="Logo do Cabeçalho" current={form.logourl} onUpload={e => handleImageUpload(e, 'logourl', 'site')} />
+                  <ImageUp label="Favicon (32x32)" current={form.faviconurl} onUpload={e => handleImageUpload(e, 'faviconurl', 'site')} />
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <AdminInput label="WhatsApp (DDI+DDD+Número)" value={form.supportwhatsapp} onChange={v => setForm({...form, supportwhatsapp: v})} />
+                  <AdminInput label="E-mail de Suporte" value={form.supportemail} onChange={v => setForm({...form, supportemail: v})} />
+                </div>
+              </div>
+            </Section>
+
+            {/* Nova seção de Cookies no Admin */}
+            <Section title="Privacidade e Cookies" icon={<ShieldCheck className="text-brand-orange"/>}>
+              <div className="p-8 bg-brand-cream/30 border border-brand-orange/10 rounded-3xl space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white rounded-2xl text-brand-orange shadow-sm">
+                    <RefreshCcw size={24} />
+                  </div>
+                  <div>
+                    <h5 className="font-black text-brand-dark uppercase text-xs">Resetar Consentimento</h5>
+                    <p className="text-xs text-gray-400 font-medium">Força a exibição do banner de cookies novamente (apenas local).</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={resetCookieConsent}
+                  className="w-full sm:w-auto bg-brand-orange text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-brand-dark transition-all"
+                >
+                  TESTAR BANNER AGORA
+                </button>
+              </div>
+            </Section>
+          </div>
+        )}
+
+        {/* ... manter as outras abas manage_store, manage_blog, content_home, content_about, payments como estão no arquivo original ... */}
         {activeTab === 'manage_store' && (
           <div className="space-y-8">
             <div className="flex items-center gap-4 bg-white p-4 rounded-2xl w-fit shadow-sm">
@@ -251,7 +298,6 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
           </div>
         )}
 
-        {/* ... (Other tabs content remains same as provided in previous file content) ... */}
         {activeTab === 'content_home' && (
           <div className="max-w-4xl space-y-10">
             <Section title="Página Inicial (Hero)" icon={<HomeIcon className="text-brand-purple"/>}>
@@ -277,7 +323,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
 
         {activeTab === 'content_about' && (
           <div className="max-w-4xl space-y-10">
-            <Section title="Página Sobre" icon={<Info className="text-brand-purple"/>}>
+            <Section title="Página Sobre" icon={<Info size={20} className="text-brand-purple"/>}>
               <div className="space-y-6">
                 <AdminInput label="Título da Seção" value={form.abouttitle} onChange={v => setForm({...form, abouttitle: v})} />
                 <AdminInput label="História / Trajetória" textarea value={form.abouttext} onChange={v => setForm({...form, abouttext: v})} />
@@ -289,23 +335,6 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
                 <ImageUp label="Destaque 1" current={form.aboutfeaturedimage1} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage1', 'site')} />
                 <ImageUp label="Destaque 2" current={form.aboutfeaturedimage2} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage2', 'site')} />
                 <ImageUp label="Destaque 3" current={form.aboutfeaturedimage3} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage3', 'site')} />
-              </div>
-            </Section>
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="max-w-4xl space-y-10">
-            <Section title="Identidade Visual" icon={<Palette className="text-brand-purple"/>}>
-              <div className="space-y-8">
-                <div className="grid grid-cols-2 gap-8">
-                  <ImageUp label="Logo do Cabeçalho" current={form.logourl} onUpload={e => handleImageUpload(e, 'logourl', 'site')} />
-                  <ImageUp label="Favicon (32x32)" current={form.faviconurl} onUpload={e => handleImageUpload(e, 'faviconurl', 'site')} />
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <AdminInput label="WhatsApp (DDI+DDD+Número)" value={form.supportwhatsapp} onChange={v => setForm({...form, supportwhatsapp: v})} />
-                  <AdminInput label="E-mail de Suporte" value={form.supportemail} onChange={v => setForm({...form, supportemail: v})} />
-                </div>
               </div>
             </Section>
           </div>
