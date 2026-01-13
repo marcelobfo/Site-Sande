@@ -12,6 +12,19 @@ export interface Product {
   created_at?: string;
 }
 
+export interface AsaasCustomerData {
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  phone: string;
+  address: string;
+  addressNumber: string;
+  complement?: string;
+  postalCode: string;
+  province: string;
+  city: string; // Pode ser o código IBGE ou o nome
+}
+
 export interface BlogPost {
   id: string;
   title: string;

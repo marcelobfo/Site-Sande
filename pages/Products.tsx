@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem } from 'lucide-react';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle } from 'lucide-react';
 import { View, SiteContent, Product } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -15,6 +15,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingClub, setPayingClub] = useState(false);
+  const [clubError, setClubError] = useState<{ message: string; type: 'api' | 'cors' | null } | null>(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -30,11 +31,12 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
   }, []);
 
   const handleClubCheckout = async () => {
+    setClubError(null);
     if (content.asaasapikey) {
       setPayingClub(true);
       try {
         const baseUrl = content.asaasissandbox 
-          ? 'https://api-sandbox.asaas.com/v3' 
+          ? 'https://sandbox.asaas.com/api/v3' 
           : 'https://api.asaas.com/v3';
 
         const response = await fetch(`${baseUrl}/checkouts`, {
@@ -45,17 +47,22 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
             'access_token': content.asaasapikey
           },
           body: JSON.stringify({
-            billingTypes: ["CREDIT_CARD"],
-            chargeTypes: ["RECURRENT"],
+            billingType: "CREDIT_CARD",
+            chargeType: "RECURRENT",
             minutesToExpire: 100,
             items: [{
               name: content.clubetitle || "Clube Protagonista",
-              description: content.clubedescription || "Acesso anual completo",
-              value: content.clubeprice,
+              description: content.clubedescription || "Acesso anual completo.",
+              value: Number(content.clubeprice),
               quantity: 1
             }],
-            subscription: { cycle: "YEARLY" },
-            callback: { successUrl: `${window.location.origin}/#thank-you` }
+            subscription: { 
+              cycle: "YEARLY" 
+            },
+            callback: { 
+              successUrl: `${window.location.origin}/#thank-you`,
+              autoRedirect: true
+            }
           })
         });
 
@@ -63,16 +70,30 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         if (response.ok && data.url) {
           window.open(data.url, '_blank');
         } else {
-          throw new Error('Falha no checkout');
+          const msg = data.errors?.[0]?.description || 'Erro ao gerar assinatura.';
+          setClubError({ message: msg, type: 'api' });
         }
-      } catch (err) {
-        window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent("Quero assinar o Clube!")}`, '_blank');
+      } catch (err: any) {
+        console.error('Falha no fetch do clube:', err);
+        if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
+          setClubError({ 
+            message: "Conexão bloqueada por segurança do navegador (CORS). Clique no botão do WhatsApp para assinar agora!", 
+            type: 'cors' 
+          });
+        } else {
+          redirectToWhatsApp();
+        }
       } finally {
         setPayingClub(false);
       }
       return;
     }
-    window.open(`https://wa.me/${content.supportwhatsapp}`, '_blank');
+    redirectToWhatsApp();
+  };
+
+  const redirectToWhatsApp = () => {
+    const msg = `Olá! Quero assinar o *Clube Protagonista* (R$ ${Number(content.clubeprice).toFixed(2)}/ano) e liberar todos os materiais. Pode me enviar o link de assinatura?`;
+    window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
@@ -95,30 +116,48 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
           <div className="md:w-1/2 p-10 lg:p-20 flex flex-col justify-center">
             <h3 className="text-4xl lg:text-5xl font-black text-brand-dark mb-6">{content.clubetitle || "Clube Protagonista"}</h3>
             <p className="text-gray-500 text-lg mb-8 leading-relaxed font-medium">
-              Não compre apenas um material, garanta o <span className="text-brand-purple font-black">Acesso Ilimitado!</span> Assinando o clube você leva TODOS os nossos produtos atuais e todas as atualizações futuras sem custo extra.
+              Assinando o clube você leva TODOS os nossos produtos atuais e todas as atualizações futuras.
             </p>
-            <div className="flex items-baseline gap-4 mb-10">
+            <div className="flex items-baseline gap-4 mb-6">
               <span className="text-5xl font-black text-brand-purple">R$ {content.clubeprice}</span>
               <span className="text-gray-400 font-bold text-xl">/anual</span>
             </div>
-            <button onClick={handleClubCheckout} disabled={payingClub} className="bg-brand-orange text-white px-10 py-6 rounded-[1.5rem] font-black text-xl shadow-2xl hover:bg-brand-dark hover:scale-105 transition-all flex items-center justify-center gap-3">
-              {payingClub ? <Loader2 className="animate-spin" /> : <>LIBERAR TODOS OS MATERIAIS <ArrowRight size={20} /></>}
+
+            {clubError && (
+              <div className="mb-6 p-6 bg-red-50 text-red-600 rounded-[2rem] flex flex-col gap-4 border border-red-100">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                  <p className="text-xs font-bold leading-tight">{clubError.message}</p>
+                </div>
+                {clubError.type === 'cors' && (
+                  <button 
+                    onClick={redirectToWhatsApp} 
+                    className="w-full bg-green-500 text-white py-4 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-green-600 transition-all shadow-lg shadow-green-100"
+                  >
+                    <MessageCircle size={18} /> ASSINAR VIA WHATSAPP
+                  </button>
+                )}
+              </div>
+            )}
+
+            <button onClick={handleClubCheckout} disabled={payingClub} className="bg-brand-orange text-white px-10 py-6 rounded-[1.5rem] font-black text-xl shadow-2xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+              {payingClub ? <Loader2 className="animate-spin" /> : <>LIBERAR ACESSO AGORA <ArrowRight size={20} /></>}
             </button>
           </div>
         </div>
       </section>
 
-      {/* Materials Vitrine */}
+      {/* Vitrine... (restante do código mantido igual) */}
       <section className="max-w-7xl mx-auto px-4 mt-24">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16">
           <div>
             <h2 className="text-4xl font-black text-brand-dark uppercase tracking-tighter">Vitrine de Materiais</h2>
-            <p className="text-gray-500 font-medium">Escolha seu próximo recurso pedagógico ou assine o clube acima.</p>
+            <p className="text-gray-500 font-medium">Recursos pedagógicos exclusivos para sua sala de aula.</p>
           </div>
           
           <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-brand-lilac/10">
             <div className="flex border-r border-gray-100 pr-2 gap-1">
-              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-300 hover:text-brand-purple'}`}><LayoutGrid size={20}/></button>
+              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-400 hover:text-brand-purple'}`}><LayoutGrid size={20}/></button>
               <button onClick={() => setViewMode('list')} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-300 hover:text-brand-purple'}`}><List size={20}/></button>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -131,40 +170,38 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
 
         {loading ? (
           <div className="py-32 flex justify-center"><Loader2 className="animate-spin text-brand-purple" size={48} /></div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {filteredProducts.map(product => (
-              <div key={product.id} className="group bg-white rounded-[3.5rem] overflow-hidden shadow-xl border border-brand-lilac/10 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
-                <div className="relative aspect-square overflow-hidden">
-                  <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
-                  <div className="absolute top-6 left-6 bg-brand-purple/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest">
-                    {product.category}
-                  </div>
-                </div>
-                <div className="p-10 flex-grow flex flex-col">
-                  <h3 className="text-2xl font-black text-brand-dark mb-4 leading-tight group-hover:text-brand-purple transition-colors">{product.title}</h3>
-                  <div className="flex items-baseline gap-2 mb-8">
-                    <span className="text-3xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</span>
-                  </div>
-                  <button className="mt-auto w-full bg-gray-50 text-brand-purple py-4 rounded-2xl font-black text-sm group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={18} /></button>
-                </div>
-              </div>
-            ))}
-          </div>
         ) : (
-          <div className="space-y-6">
+          <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10" : "space-y-6"}>
             {filteredProducts.map(product => (
-              <div key={product.id} className="group bg-white p-6 rounded-[2.5rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-8 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
-                <img src={product.image_url} className="w-24 h-24 rounded-3xl object-cover shrink-0" alt="" />
-                <div className="flex-grow">
-                  <div className="bg-brand-purple/10 text-brand-purple px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit mb-2">{product.category}</div>
-                  <h3 className="text-xl font-black text-brand-dark">{product.title}</h3>
+              viewMode === 'grid' ? (
+                <div key={product.id} className="group bg-white rounded-[3.5rem] overflow-hidden shadow-xl border border-brand-lilac/10 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
+                  <div className="relative aspect-square overflow-hidden">
+                    <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
+                    <div className="absolute top-6 left-6 bg-brand-purple/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest">
+                      {product.category}
+                    </div>
+                  </div>
+                  <div className="p-10 flex-grow flex flex-col">
+                    <h3 className="text-2xl font-black text-brand-dark mb-4 leading-tight group-hover:text-brand-purple transition-colors">{product.title}</h3>
+                    <div className="flex items-baseline gap-2 mb-8">
+                      <span className="text-3xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</span>
+                    </div>
+                    <button className="mt-auto w-full bg-gray-50 text-brand-purple py-4 rounded-2xl font-black text-sm group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={18} /></button>
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-2xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
-                  <button className="text-brand-orange font-black text-xs uppercase flex items-center gap-1 mt-1">Ver Material <ArrowRight size={14}/></button>
+              ) : (
+                <div key={product.id} className="group bg-white p-6 rounded-[2.5rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-8 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
+                  <img src={product.image_url} className="w-24 h-24 rounded-3xl object-cover shrink-0" alt="" />
+                  <div className="flex-grow">
+                    <div className="bg-brand-purple/10 text-brand-purple px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit mb-2">{product.category}</div>
+                    <h3 className="text-xl font-black text-brand-dark">{product.title}</h3>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-2xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
+                    <button className="text-brand-orange font-black text-xs uppercase flex items-center gap-1 mt-1">Ver Material <ArrowRight size={14}/></button>
+                  </div>
                 </div>
-              </div>
+              )
             ))}
           </div>
         )}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2 } from 'lucide-react';
-import { Product, View, SiteContent } from '../types';
+import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, User, FileText, Phone, MapPin, Mail, ArrowRight, AlertCircle, MessageCircle } from 'lucide-react';
+import { Product, View, SiteContent, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface ProductDetailProps {
@@ -14,6 +14,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [showBillingForm, setShowBillingForm] = useState(false);
+  const [errorState, setErrorState] = useState<{ message: string; type: 'api' | 'cors' | 'network' | null }>({ message: '', type: null });
+  
+  const [customerData, setCustomerData] = useState<AsaasCustomerData>({
+    name: '',
+    email: '',
+    cpfCnpj: '',
+    phone: '',
+    address: '',
+    addressNumber: '',
+    complement: '',
+    postalCode: '',
+    province: '',
+    city: ''
+  });
 
   useEffect(() => {
     if (!productId) {
@@ -44,22 +59,53 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     fetchProduct();
   }, [productId, onNavigate]);
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (e?: React.FormEvent, skipPreFill = false) => {
+    if (e) e.preventDefault();
     if (!product) return;
+    setErrorState({ message: '', type: null });
 
-    // PRIORIDADE 1: Se o administrador cadastrou um link manual (Asaas ou Hotmart), usamos ele.
-    if (product.checkout_url && product.checkout_url.startsWith('http')) {
-      window.open(product.checkout_url, '_blank');
-      return;
-    }
-
-    // PRIORIDADE 2: Geração dinâmica via API Asaas (/v3/checkouts) conforme documentação
+    // Se a API Key do Asaas estiver presente, tentamos o checkout dinâmico.
     if (content.asaasapikey) {
       setPaying(true);
       try {
         const baseUrl = content.asaasissandbox 
-          ? 'https://api-sandbox.asaas.com/v3' 
+          ? 'https://sandbox.asaas.com/api/v3' 
           : 'https://api.asaas.com/v3';
+
+        // Estrutura de Payload baseada na sugestão do usuário e compatibilidade v3
+        const payload: any = {
+          billingType: "CREDIT_CARD", // Aceita CREDIT_CARD, BOLETO, PIX ou UNDEFINED
+          chargeType: "DETACHED",
+          minutesToExpire: 120,
+          items: [
+            {
+              name: product.title,
+              description: `Material Digital: ${product.title}`,
+              value: Number(product.price),
+              quantity: 1
+            }
+          ],
+          callback: {
+            successUrl: `${window.location.origin}/#thank-you`,
+            autoRedirect: true
+          }
+        };
+
+        // Adiciona dados do cliente se preenchidos
+        if (!skipPreFill && customerData.name && customerData.email) {
+          payload.customerData = {
+            name: customerData.name,
+            email: customerData.email,
+            cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
+            phone: customerData.phone.replace(/\D/g, ''),
+            address: customerData.address,
+            addressNumber: customerData.addressNumber,
+            complement: customerData.complement,
+            postalCode: customerData.postalCode.replace(/\D/g, ''),
+            province: customerData.province,
+            city: customerData.city
+          };
+        }
 
         const response = await fetch(`${baseUrl}/checkouts`, {
           method: 'POST',
@@ -68,52 +114,66 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
             'content-type': 'application/json',
             'access_token': content.asaasapikey
           },
-          body: JSON.stringify({
-            billingTypes: ["CREDIT_CARD", "PIX", "BOLETO"],
-            chargeTypes: ["DETACHED"], // Cobrança única (avulsa)
-            minutesToExpire: 120,
-            items: [
-              {
-                name: product.title,
-                description: `Material Digital: ${product.title} - Professora Sande Almeida`,
-                value: product.price,
-                quantity: 1
-              }
-            ],
-            callback: {
-              successUrl: `${window.location.origin}/#thank-you`,
-              cancelUrl: window.location.href
-            }
-          })
+          body: JSON.stringify(payload)
         });
 
         const data = await response.json();
         
         if (response.ok && data.url) {
           window.open(data.url, '_blank');
+          setShowBillingForm(false);
         } else {
-          throw new Error(data.errors?.[0]?.description || 'Erro na API Asaas');
+          const errorMsg = data.errors?.[0]?.description || 'Erro ao processar checkout.';
+          setErrorState({ message: errorMsg, type: 'api' });
         }
       } catch (err: any) {
-        // Fallback automático para WhatsApp caso falte API ou ocorra erro de CORS
-        console.warn('Checkout automático falhou (possível CORS). Redirecionando para WhatsApp...');
-        const waMsg = `Olá Professora Sande! Gostaria de adquirir o material: *${product.title}* (R$ ${Number(product.price).toFixed(2)}). O checkout dinâmico não carregou, pode me enviar o link por aqui?`;
-        window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(waMsg)}`, '_blank');
+        console.error('Erro de requisição:', err);
+        
+        // Detecção específica de erro de CORS (Failed to fetch)
+        if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
+          setErrorState({ 
+            message: 'O checkout automático foi bloqueado pelo seu navegador (CORS). Isso é uma medida de segurança comum. Por favor, clique abaixo para finalizar via WhatsApp com nosso suporte!', 
+            type: 'cors' 
+          });
+        } else {
+          setErrorState({ 
+            message: 'Falha na conexão com o sistema de pagamentos.', 
+            type: 'network' 
+          });
+        }
       } finally {
         setPaying(false);
       }
       return;
     }
 
-    // PRIORIDADE 3: Fallback Direto WhatsApp
-    const fallbackMsg = `Olá Sande! Gostaria de comprar o material: *${product.title}* (Valor: R$ ${Number(product.price).toFixed(2)}). Como posso realizar o pagamento?`;
-    window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(fallbackMsg)}`, '_blank');
+    // Fallback padrão se não houver API Key
+    redirectToWhatsApp();
+  };
+
+  const redirectToWhatsApp = () => {
+    if (!product) return;
+    const msg = `Olá! Gostaria de adquirir o material: *${product.title}* (R$ ${Number(product.price).toFixed(2)}).
+
+*Meus Dados:*
+Nome: ${customerData.name || 'Pendente'}
+E-mail: ${customerData.email || 'Pendente'}
+CPF/CNPJ: ${customerData.cpfCnpj || 'Pendente'}
+WhatsApp: ${customerData.phone || 'Pendente'}
+
+Pode me enviar o link de pagamento?`;
+
+    window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomerData({ ...customerData, [e.target.name]: e.target.value });
   };
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-cream/30">
       <Loader2 className="animate-spin text-brand-purple mb-4" size={64} />
-      <p className="font-black text-brand-dark uppercase tracking-widest text-sm animate-pulse">Preparando Material...</p>
+      <p className="font-black text-brand-dark uppercase tracking-widest text-sm animate-pulse">Carregando Material...</p>
     </div>
   );
 
@@ -143,19 +203,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
                 <Zap size={40} fill="currentColor" />
               </div>
             </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { icon: <ShieldCheck size={24} />, label: "7 Dias de Garantia", color: "text-brand-purple" },
-                { icon: <Zap size={24} />, label: "Download Instantâneo", color: "text-brand-orange" },
-                { icon: <CheckCircle2 size={24} />, label: "Canva Editável", color: "text-green-500" }
-              ].map((item, i) => (
-                <div key={i} className="bg-white/90 backdrop-blur-sm p-6 rounded-3xl border border-brand-lilac/20 text-center shadow-sm">
-                  <div className={`mx-auto mb-2 flex justify-center ${item.color}`}>{item.icon}</div>
-                  <p className="text-[10px] font-black uppercase text-gray-500 tracking-tight leading-tight">{item.label}</p>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="flex flex-col">
@@ -174,8 +221,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
             </p>
 
             <div className="bg-white p-10 lg:p-14 rounded-[4rem] shadow-3xl border border-brand-lilac/10 relative overflow-hidden group/card">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-brand-purple/5 rounded-full -mr-24 -mt-24 group-hover/card:scale-150 transition-transform duration-1000"></div>
-              
               <div className="relative z-10">
                 <div className="mb-10">
                   {product.old_price && (
@@ -191,40 +236,110 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
                 <div className="space-y-6">
                   <button 
-                    onClick={handleCheckout}
-                    disabled={paying}
-                    className="group/btn w-full bg-brand-orange text-white py-8 rounded-[2.5rem] font-black text-2xl lg:text-3xl shadow-2xl shadow-orange-200 hover:bg-brand-dark hover:shadow-purple-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4"
+                    onClick={() => setShowBillingForm(true)}
+                    className="group/btn w-full bg-brand-orange text-white py-8 rounded-[2.5rem] font-black text-2xl lg:text-3xl shadow-2xl hover:bg-brand-dark transition-all active:scale-95 flex items-center justify-center gap-4"
                   >
-                    {paying ? (
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="animate-spin" size={32} />
-                        <span>PROCESSANDO...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <ShoppingCart size={32} className="group-hover/btn:rotate-12 transition-transform" /> 
-                        QUERO ESTE MATERIAL
-                      </>
-                    )}
+                    <ShoppingCart size={32} /> 
+                    ADQUIRIR AGORA
                   </button>
-
-                  <div className="flex flex-col items-center gap-5 text-center">
-                    <p className="text-gray-400 text-[11px] font-bold flex items-center gap-2">
-                      <ShieldCheck size={14} className="text-green-500" /> 
-                      Pagamento Seguro e Processado via Asaas
-                    </p>
-                    <div className="flex gap-5 opacity-40 hover:opacity-100 transition-opacity duration-500">
-                      <img src="https://logodownload.org/wp-content/uploads/2014/10/visa-logo-1.png" className="h-4 w-auto grayscale" alt="Visa" />
-                      <img src="https://logodownload.org/wp-content/uploads/2014/07/mastercard-logo-7.png" className="h-4 w-auto grayscale" alt="Mastercard" />
-                      <img src="https://logodownload.org/wp-content/uploads/2020/02/pix-logo-1.png" className="h-4 w-auto grayscale" alt="Pix" />
-                    </div>
-                  </div>
+                  <p className="text-gray-400 text-[11px] font-bold text-center flex items-center justify-center gap-2">
+                    <ShieldCheck size={16} className="text-green-500" /> Transação Segura via Asaas
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {showBillingForm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
+          <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Finalizar Pedido</h3>
+              <button onClick={() => setShowBillingForm(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all">
+                <X size={28} className="text-gray-300" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCheckout} className="p-10 lg:p-12 overflow-y-auto custom-scrollbar flex-grow">
+              {errorState.type && (
+                <div className="mb-8 p-6 bg-red-50 border-2 border-red-100 rounded-3xl animate-in slide-in-from-top">
+                  <div className="flex items-start gap-4 text-red-600 font-bold mb-4">
+                    <AlertCircle size={24} className="shrink-0" />
+                    <span className="text-sm leading-tight">{errorState.message}</span>
+                  </div>
+                  {(errorState.type === 'cors' || errorState.type === 'network') && (
+                    <div className="space-y-4">
+                      <button 
+                        type="button"
+                        onClick={redirectToWhatsApp}
+                        className="w-full bg-green-500 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-600 transition-all shadow-lg shadow-green-100"
+                      >
+                        <MessageCircle size={20} /> FINALIZAR NO WHATSAPP
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="col-span-1 md:col-span-2">
+                  <BillingInput label="Nome Completo" icon={<User size={18}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
+                </div>
+                <BillingInput label="E-mail" icon={<Mail size={18}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
+                <BillingInput label="WhatsApp" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CEP" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
+                <div className="col-span-1 md:col-span-2">
+                  <BillingInput label="Endereço" icon={<MapPin size={18}/>} name="address" value={customerData.address} onChange={handleInputChange} required />
+                </div>
+                <BillingInput label="Número" name="addressNumber" value={customerData.addressNumber} onChange={handleInputChange} required />
+                <BillingInput label="Bairro" name="province" value={customerData.province} onChange={handleInputChange} required />
+                <BillingInput label="Cidade" name="city" value={customerData.city} onChange={handleInputChange} required />
+                <BillingInput label="Complemento" name="complement" value={customerData.complement} onChange={handleInputChange} />
+              </div>
+
+              <div className="mt-12 flex flex-col lg:flex-row gap-4">
+                <button 
+                  type="submit"
+                  disabled={paying}
+                  className="flex-grow bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3"
+                >
+                  {paying ? <Loader2 className="animate-spin" /> : <><ShoppingCart size={24}/> IR PARA PAGAMENTO</>}
+                </button>
+                <button 
+                  type="button"
+                  onClick={redirectToWhatsApp}
+                  className="lg:w-1/3 bg-white text-green-500 border-2 border-green-500 py-6 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-green-50 transition-all flex items-center justify-center gap-2"
+                >
+                  <Phone size={18} /> WhatsApp
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
+      `}</style>
     </div>
   );
 };
+
+const BillingInput = ({ label, icon, required, ...props }: any) => (
+  <div className="w-full">
+    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">{label} {required && '*'}</label>
+    <div className="relative group">
+      {icon && <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-brand-purple transition-colors">{icon}</div>}
+      <input 
+        required={required}
+        {...props}
+        className={`w-full ${icon ? 'pl-14' : 'px-6'} py-5 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-2xl font-bold text-brand-dark transition-all outline-none shadow-inner`} 
+      />
+    </div>
+  </div>
+);
