@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Star, Zap, ArrowRight, Sparkles, Quote, Circle, CheckCircle2, ShoppingCart, Calendar, User, ArrowUpRight } from 'lucide-react';
+import { Star, Zap, ArrowRight, Sparkles, Quote, Circle, CheckCircle2, ShoppingCart, Calendar, User, ArrowUpRight, ShieldCheck, Gem } from 'lucide-react';
 import { View, SiteContent, Product, BlogPost } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -100,42 +100,51 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
         </div>
       </section>
 
-      {/* Method Section - Updated with OCR content */}
-      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-        <div className="relative group">
-          <div className="absolute -inset-4 bg-brand-orange/10 rounded-[4.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <img 
-            src={content.homemethodimageurl || "https://picsum.photos/seed/method-sande/700/700"} 
-            className="relative rounded-[4rem] shadow-3xl border-8 border-white object-cover aspect-square" 
-            alt="O Método" 
-          />
-          <div className="absolute -bottom-8 -right-8 bg-brand-purple text-white p-10 rounded-[2.5rem] shadow-3xl flex flex-col items-center">
-            <span className="text-4xl font-black italic">+15 ANOS</span>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-80">De Experiência</span>
+      {/* Clube CTA - NEW PERSUASIVE COPY */}
+      <section className="max-w-7xl mx-auto px-4">
+        <div className="bg-brand-purple rounded-[5rem] p-12 lg:p-24 text-white text-center relative overflow-hidden shadow-3xl">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -mr-48 -mt-48"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-orange/10 rounded-full blur-2xl -ml-32 -mb-32"></div>
+          
+          <div className="relative z-10 space-y-12">
+            <div className="bg-brand-orange text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto shadow-2xl animate-bounce">
+              <Gem size={40} />
+            </div>
+            
+            <div className="space-y-4">
+              <h2 className="text-5xl lg:text-[5.5rem] font-black leading-[0.85] tracking-tighter uppercase italic">
+                O Arsenal Completo <br/>
+                <span className="text-brand-orange not-italic">da Professora</span>
+              </h2>
+              <p className="text-brand-lilac font-black text-2xl uppercase tracking-widest">Acesso Ilimitado • Atualizações Semanais</p>
+            </div>
+
+            <p className="text-xl lg:text-3xl text-purple-100 font-medium max-w-4xl mx-auto leading-relaxed">
+              Não compre apenas um material, garanta o <span className="text-white font-black underline decoration-brand-orange underline-offset-8">Acesso Total!</span> Ao entrar no Clube Protagonista, você libera instantaneamente toda a nossa biblioteca de combos, dinâmicas e manuais, além de receber todas as atualizações e novos materiais sem pagar nada a mais por isso.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {[
+                { icon: <CheckCircle2 className="text-brand-orange" />, text: "Biblioteca Completa Liberada" },
+                { icon: <Zap className="text-brand-orange" />, text: "Novos Materiais Toda Semana" },
+                { icon: <ShieldCheck className="text-brand-orange" />, text: "Suporte VIP e Aulas Exclusivas" }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 bg-white/5 p-6 rounded-3xl border border-white/10">
+                  {item.icon}
+                  <span className="font-black text-xs uppercase tracking-tight text-left">{item.text}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col items-center gap-6">
+               <button onClick={() => onNavigate('products')} className="bg-brand-orange text-white px-16 py-8 rounded-[2.5rem] font-black text-2xl lg:text-3xl shadow-3xl hover:scale-105 transition-all hover:bg-white hover:text-brand-purple group">
+                  QUERO ACESSO ILIMITADO AGORA
+               </button>
+               <div className="flex items-center gap-4 text-sm font-black text-purple-200 uppercase tracking-widest">
+                  <Star fill="currentColor" size={16} /> Tudo o que você precisa para dar um show na sala de aula
+               </div>
+            </div>
           </div>
-        </div>
-        <div className="space-y-10">
-          <div className="inline-flex items-center gap-2 text-brand-orange font-black text-xs uppercase tracking-widest">
-             <Star size={16} fill="currentColor" /> Soluções Reais para a Sala de Aula
-          </div>
-          <h2 className="text-5xl lg:text-7xl font-black text-brand-dark leading-[0.95] tracking-tighter uppercase">Sobre o Método <br/> <span className="text-brand-purple italic">Protagonizar</span></h2>
-          <p className="text-xl text-gray-500 leading-relaxed font-medium">
-            O Método Protagonizar nasceu da prática diária. Compreendo as dores e os desafios reais da profissão docente, por isso oferecemos materiais que saem da aula prontos para serem aplicados.
-          </p>
-          <ul className="space-y-6">
-            {[
-              "Aplicabilidade Imediata e Prática",
-              "Metodologias Ativas Acessíveis",
-              "Versatilidade e Custo-Benefício"
-            ].map((item, i) => (
-              <li key={i} className="flex items-center gap-4 text-brand-dark font-black uppercase text-sm tracking-tight">
-                <CheckCircle2 className="text-brand-orange" size={24} /> {item}
-              </li>
-            ))}
-          </ul>
-          <button onClick={() => onNavigate('about')} className="bg-brand-dark text-white px-10 py-5 rounded-2xl font-black text-lg hover:scale-105 transition-all shadow-xl flex items-center gap-3">
-             CONHECER HISTÓRIA <ArrowRight size={20} />
-          </button>
         </div>
       </section>
 
@@ -167,28 +176,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
                 </div>
               </article>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Clube CTA */}
-      <section className="max-w-7xl mx-auto px-4">
-        <div className="bg-brand-purple rounded-[5rem] p-12 lg:p-24 text-white text-center relative overflow-hidden shadow-3xl">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -mr-48 -mt-48"></div>
-          <div className="relative z-10 space-y-12">
-            <Sparkles size={64} className="mx-auto text-brand-orange animate-pulse" />
-            <h2 className="text-5xl lg:text-[5rem] font-black leading-none tracking-tighter uppercase italic">
-              Seja parte do <br/><span className="text-brand-orange not-italic">Clube Protagonista</span>
-            </h2>
-            <p className="text-xl lg:text-2xl text-purple-100 font-medium max-w-2xl mx-auto leading-relaxed">
-              Receba materiais novos toda semana, link do Canva editável e capacitação contínua para transformar sua carreira.
-            </p>
-            <div className="flex flex-col items-center gap-4">
-               <button onClick={() => onNavigate('products')} className="bg-white text-brand-purple px-16 py-7 rounded-[2.5rem] font-black text-2xl shadow-2xl hover:scale-105 transition-all hover:bg-brand-orange hover:text-white group">
-                  QUERO ASSINAR AGORA
-               </button>
-               <p className="text-sm font-bold uppercase tracking-widest text-purple-200">Menos planejamento, mais engajamento.</p>
-            </div>
           </div>
         </div>
       </section>

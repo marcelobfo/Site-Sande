@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List } from 'lucide-react';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem } from 'lucide-react';
 import { View, SiteContent, Product } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -85,19 +85,24 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
       {/* Clube Section */}
       <section className="bg-brand-purple py-24 px-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
-        <div className="max-w-6xl mx-auto bg-white rounded-[4rem] shadow-3xl overflow-hidden flex flex-col md:flex-row relative z-10">
+        <div className="max-w-6xl mx-auto bg-white rounded-[4rem] shadow-3xl overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/20">
           <div className="md:w-1/2 relative min-h-[400px]">
             <img src={content.clubebannerimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png"} className="absolute inset-0 w-full h-full object-cover" alt="Clube" />
+            <div className="absolute top-8 left-8 bg-brand-orange text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
+              <Gem size={14} /> Recomendado
+            </div>
           </div>
           <div className="md:w-1/2 p-10 lg:p-20 flex flex-col justify-center">
             <h3 className="text-4xl lg:text-5xl font-black text-brand-dark mb-6">{content.clubetitle || "Clube Protagonista"}</h3>
-            <p className="text-gray-500 text-lg mb-10 leading-relaxed font-medium">{content.clubedescription}</p>
+            <p className="text-gray-500 text-lg mb-8 leading-relaxed font-medium">
+              Não compre apenas um material, garanta o <span className="text-brand-purple font-black">Acesso Ilimitado!</span> Assinando o clube você leva TODOS os nossos produtos atuais e todas as atualizações futuras sem custo extra.
+            </p>
             <div className="flex items-baseline gap-4 mb-10">
               <span className="text-5xl font-black text-brand-purple">R$ {content.clubeprice}</span>
               <span className="text-gray-400 font-bold text-xl">/anual</span>
             </div>
-            <button onClick={handleClubCheckout} disabled={payingClub} className="bg-brand-orange text-white px-10 py-5 rounded-2xl font-black text-xl shadow-2xl flex items-center justify-center gap-3">
-              {payingClub ? <Loader2 className="animate-spin" /> : <>ASSINAR AGORA <ArrowRight size={20} /></>}
+            <button onClick={handleClubCheckout} disabled={payingClub} className="bg-brand-orange text-white px-10 py-6 rounded-[1.5rem] font-black text-xl shadow-2xl hover:bg-brand-dark hover:scale-105 transition-all flex items-center justify-center gap-3">
+              {payingClub ? <Loader2 className="animate-spin" /> : <>LIBERAR TODOS OS MATERIAIS <ArrowRight size={20} /></>}
             </button>
           </div>
         </div>
@@ -107,8 +112,8 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
       <section className="max-w-7xl mx-auto px-4 mt-24">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16">
           <div>
-            <h2 className="text-4xl font-black text-brand-dark uppercase tracking-tighter">Materiais</h2>
-            <p className="text-gray-500 font-medium">Escolha seu próximo recurso pedagógico.</p>
+            <h2 className="text-4xl font-black text-brand-dark uppercase tracking-tighter">Vitrine de Materiais</h2>
+            <p className="text-gray-500 font-medium">Escolha seu próximo recurso pedagógico ou assine o clube acima.</p>
           </div>
           
           <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-brand-lilac/10">
@@ -129,14 +134,19 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {filteredProducts.map(product => (
-              <div key={product.id} className="group bg-white rounded-[3.5rem] overflow-hidden shadow-xl border border-brand-lilac/10 hover:shadow-2xl transition-all cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
-                <img src={product.image_url} className="w-full aspect-square object-cover" alt={product.title} />
-                <div className="p-10">
-                  <h3 className="text-2xl font-black text-brand-dark mb-4 leading-tight">{product.title}</h3>
+              <div key={product.id} className="group bg-white rounded-[3.5rem] overflow-hidden shadow-xl border border-brand-lilac/10 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
+                <div className="relative aspect-square overflow-hidden">
+                  <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
+                  <div className="absolute top-6 left-6 bg-brand-purple/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest">
+                    {product.category}
+                  </div>
+                </div>
+                <div className="p-10 flex-grow flex flex-col">
+                  <h3 className="text-2xl font-black text-brand-dark mb-4 leading-tight group-hover:text-brand-purple transition-colors">{product.title}</h3>
                   <div className="flex items-baseline gap-2 mb-8">
                     <span className="text-3xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</span>
                   </div>
-                  <button className="w-full bg-gray-50 text-brand-purple py-4 rounded-2xl font-black text-sm group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={18} /></button>
+                  <button className="mt-auto w-full bg-gray-50 text-brand-purple py-4 rounded-2xl font-black text-sm group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={18} /></button>
                 </div>
               </div>
             ))}

@@ -140,8 +140,8 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
   );
 
   return (
-    <div className="bg-gray-50 min-h-screen flex">
-      <aside onMouseEnter={() => setIsSidebarExpanded(true)} onMouseLeave={() => setIsSidebarExpanded(false)} className={`bg-white border-r p-6 flex flex-col transition-all duration-300 h-screen sticky top-0 z-40 ${isSidebarExpanded ? 'w-72' : 'w-24'}`}>
+    <div className="bg-gray-50 min-h-screen flex max-w-full overflow-hidden">
+      <aside onMouseEnter={() => setIsSidebarExpanded(true)} onMouseLeave={() => setIsSidebarExpanded(false)} className={`bg-white border-r p-6 flex flex-col transition-all duration-300 h-screen sticky top-0 z-40 shrink-0 ${isSidebarExpanded ? 'w-72' : 'w-24'}`}>
         <div className="flex items-center gap-3 mb-12">
           <div className="bg-brand-dark p-2.5 rounded-xl text-white"><Settings size={24} /></div>
           <h2 className={`font-black text-xl transition-opacity ${isSidebarExpanded ? 'opacity-100' : 'opacity-0'}`}>PAINEL</h2>
@@ -158,7 +158,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
         </nav>
       </aside>
 
-      <div className="flex-grow p-8 lg:p-12 overflow-y-auto">
+      <div className="flex-grow p-8 lg:p-12 overflow-y-auto max-w-full overflow-x-hidden">
         <header className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-black text-brand-dark uppercase tracking-tighter">
             {activeTab === 'leads' ? 'Kanban de Leads' : 
@@ -184,9 +184,9 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
         {errorMessage && <div className="bg-red-500 text-white p-6 rounded-2xl font-black mb-8 flex items-center gap-3"><AlertTriangle /> {errorMessage}</div>}
 
         {activeTab === 'leads' && (
-          <div className="flex gap-6 overflow-x-auto pb-10 min-h-[70vh]">
+          <div className="flex gap-6 overflow-x-auto pb-6 min-h-[70vh] custom-scrollbar-h">
             {STATUS_OPTIONS.map(status => (
-              <div key={status} className="bg-gray-100/50 p-6 rounded-[2.5rem] min-w-[320px] flex flex-col border-2 border-dashed border-transparent">
+              <div key={status} className="bg-gray-100/30 p-6 rounded-[2.5rem] min-w-[320px] flex flex-col border-2 border-dashed border-transparent">
                 <div className="flex justify-between items-center mb-6 px-2">
                   <h4 className="font-black text-[11px] uppercase text-gray-400 tracking-widest">{status}</h4>
                   <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-brand-purple shadow-sm">{leads.filter(l => l.status === status).length}</span>
@@ -251,6 +251,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
           </div>
         )}
 
+        {/* ... (Other tabs content remains same as provided in previous file content) ... */}
         {activeTab === 'content_home' && (
           <div className="max-w-4xl space-y-10">
             <Section title="Página Inicial (Hero)" icon={<HomeIcon className="text-brand-purple"/>}>
@@ -328,56 +329,80 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
         )}
       </div>
 
-      {/* LEAD DETAIL MODAL - KANBAN RESTORED */}
+      {/* LEAD DETAIL MODAL - KANBAN FIX */}
       {isLeadDetailOpen && selectedLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-3xl overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
+          <div className="bg-white w-full max-w-3xl rounded-[3.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.25)] overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-10 lg:p-14 border-b flex justify-between items-start">
               <div>
-                <h3 className="text-3xl font-black text-brand-dark tracking-tighter uppercase">{selectedLead.name}</h3>
-                <p className="text-brand-purple font-black uppercase text-[10px] tracking-widest mt-1">{selectedLead.subject}</p>
+                <h3 className="text-4xl lg:text-5xl font-black text-brand-dark tracking-tighter uppercase leading-none">{selectedLead.name}</h3>
+                <p className="text-brand-purple font-black uppercase text-xs tracking-[0.2em] mt-3">{selectedLead.subject}</p>
               </div>
-              <button onClick={() => setIsLeadDetailOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm"><X size={32}/></button>
+              <button 
+                onClick={() => setIsLeadDetailOpen(false)} 
+                className="w-16 h-16 flex items-center justify-center bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all shadow-sm group"
+              >
+                <X size={32} className="text-gray-300 group-hover:text-brand-dark transition-colors" />
+              </button>
             </div>
-            <div className="p-10 space-y-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-2 gap-8">
-                <div className="bg-brand-lilac/5 p-6 rounded-3xl border border-brand-lilac/10">
-                  <label className="label-admin">E-mail</label>
-                  <p className="font-bold text-brand-dark break-all">{selectedLead.email}</p>
+            
+            <div className="p-10 lg:p-14 space-y-10 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-brand-lilac/5 p-8 rounded-[2rem] border border-brand-lilac/10">
+                  <label className="label-admin mb-3 block">E-mail de Contato</label>
+                  <p className="font-black text-brand-dark text-lg break-all leading-none">{selectedLead.email}</p>
                 </div>
-                <div className="bg-brand-lilac/5 p-6 rounded-3xl border border-brand-lilac/10">
-                  <label className="label-admin">WhatsApp</label>
-                  <p className="font-bold text-brand-dark">{selectedLead.whatsapp || 'Não informado'}</p>
+                <div className="bg-brand-lilac/5 p-8 rounded-[2rem] border border-brand-lilac/10">
+                  <label className="label-admin mb-3 block">WhatsApp / Telefone</label>
+                  <p className="font-black text-brand-dark text-lg leading-none">{selectedLead.whatsapp || 'Não informado'}</p>
                 </div>
               </div>
-              <div className="bg-gray-50 p-8 rounded-[2.5rem] border border-gray-100">
-                <label className="label-admin">Mensagem Recebida</label>
-                <div className="font-medium text-gray-700 leading-relaxed whitespace-pre-wrap mt-2">
+
+              <div className="bg-gray-50/50 p-10 rounded-[3rem] border border-gray-100">
+                <label className="label-admin mb-4 block">Mensagem Recebida</label>
+                <div className="font-medium text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
                   {selectedLead.message}
                 </div>
               </div>
+
               <div>
-                <label className="label-admin mb-4">Mudar Status do Lead</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="label-admin mb-6 block">Mudar Status do Atendimento</label>
+                <div className="flex flex-wrap gap-3">
                   {STATUS_OPTIONS.map(opt => (
-                    <button key={opt} onClick={() => updateLeadStatus(selectedLead.id, opt)} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition-all ${selectedLead.status === opt ? 'bg-brand-purple text-white shadow-xl scale-105' : 'bg-white text-gray-400 border border-gray-100 hover:bg-gray-50'}`}>
+                    <button 
+                      key={opt} 
+                      onClick={() => updateLeadStatus(selectedLead.id, opt)} 
+                      className={`px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedLead.status === opt ? 'bg-brand-purple text-white shadow-xl scale-105' : 'bg-white text-gray-300 border border-gray-100 hover:border-brand-purple hover:text-brand-purple'}`}
+                    >
                       {opt}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-            <div className="p-10 bg-gray-50 border-t flex justify-between items-center">
-              <button onClick={() => deleteItem('leads', selectedLead.id)} className="text-red-500 font-black text-xs uppercase flex items-center gap-2 hover:scale-105 transition-all"><Trash2 size={20}/> Excluir Registro</button>
-              <a href={`https://wa.me/${selectedLead.whatsapp?.replace(/\D/g,'')}`} target="_blank" className="bg-green-500 text-white px-10 py-5 rounded-[2rem] font-black shadow-xl flex items-center gap-3 hover:bg-green-600 transition-all"><MessageCircle size={24}/> RESPONDER AGORA</a>
+
+            <div className="p-10 lg:p-14 bg-gray-50/80 border-t flex flex-col sm:flex-row justify-between items-center gap-6">
+              <button 
+                onClick={() => deleteItem('leads', selectedLead.id)} 
+                className="text-red-500 font-black text-xs uppercase flex items-center gap-2 hover:scale-105 transition-all group"
+              >
+                <Trash2 size={20} className="group-hover:rotate-12 transition-transform" /> Excluir Registro Permanente
+              </button>
+              <a 
+                href={`https://wa.me/${selectedLead.whatsapp?.replace(/\D/g,'')}`} 
+                target="_blank" 
+                className="w-full sm:w-auto bg-green-500 text-white px-12 py-6 rounded-[2.5rem] font-black text-xl shadow-2xl shadow-green-100 flex items-center justify-center gap-3 hover:bg-green-600 hover:scale-105 active:scale-95 transition-all"
+              >
+                <MessageCircle size={28} /> RESPONDER AGORA
+              </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL GLOBAL (PRODUTOS / BLOG) - RESTORED */}
+      {/* MODAL GLOBAL (PRODUTOS / BLOG) */}
       {isModalOpen && editItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-sm">
           <div className="bg-white w-full max-w-4xl rounded-[4rem] shadow-3xl overflow-hidden animate-in slide-in-from-bottom-8 duration-500">
             <div className="flex justify-between items-center p-12 border-b bg-gray-50/30">
               <div>
@@ -422,6 +447,11 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
+        
+        .custom-scrollbar-h::-webkit-scrollbar { height: 8px; }
+        .custom-scrollbar-h::-webkit-scrollbar-track { background: #F1F5F9; border-radius: 10px; }
+        .custom-scrollbar-h::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        .custom-scrollbar-h::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
       `}</style>
     </div>
   );
