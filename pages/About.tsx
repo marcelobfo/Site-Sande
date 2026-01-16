@@ -95,7 +95,8 @@ export const About: React.FC<AboutProps> = ({ onNavigate, content }) => {
             ].map((item, i) => (
               <div key={i} className="bg-white p-12 rounded-[3.5rem] shadow-xl border border-brand-lilac/5 group hover:bg-brand-purple transition-all duration-500">
                 <div className="w-20 h-20 bg-brand-lilac/10 rounded-3xl flex items-center justify-center text-brand-purple mb-8 group-hover:bg-white/10 group-hover:text-white transition-all">
-                  {React.cloneElement(item.icon as React.ReactElement, { size: 40 })}
+                  {/* Fixed: Cast item.icon to React.ReactElement<any> to resolve TypeScript error regarding 'size' property in cloneElement */}
+                  {React.cloneElement(item.icon as React.ReactElement<any>, { size: 40 })}
                 </div>
                 <h3 className="text-2xl font-black text-brand-dark mb-4 group-hover:text-white uppercase tracking-tight">{item.title}</h3>
                 <p className="text-gray-500 font-medium leading-relaxed group-hover:text-purple-100">{item.desc}</p>

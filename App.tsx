@@ -27,7 +27,7 @@ const DEFAULT_CONTENT: SiteContent = {
   clubeprice: 397,
   supportwhatsapp: '5533999872505',
   supportemail: 'contato@metodoprotagonizar.com.br',
-  asaasissandbox: true
+  asaas_use_sandbox: true
 };
 
 const formatSupabaseError = (error: any): string => {
@@ -100,24 +100,48 @@ const App: React.FC = () => {
   const handleUpdateContent = async (newContent: SiteContent) => {
     setContent(newContent);
     
-    const { created_at, updated_at, ...cleanContent } = newContent as any;
+    // Lista de campos que costumam faltar em tabelas antigas
+    const extendedFields = [
+      'asaas_production_key', 
+      'asaas_sandbox_key', 
+      'asaas_use_sandbox', 
+      'asaas_backend_url',
+      'aboutfeaturedimage1',
+      'aboutfeaturedimage2',
+      'aboutfeaturedimage3'
+    ];
     
-    const payload = {
-      ...cleanContent,
-      id: 1
+    const { created_at, updated_at, ...allFields } = newContent as any;
+    
+    const tryUpsert = async (payload: any) => {
+      return await supabase
+        .from('site_content')
+        .upsert({ ...payload, id: 1 }, { onConflict: 'id' });
     };
 
-    const { error } = await supabase
-      .from('site_content')
-      .upsert(payload, { onConflict: 'id' });
+    // Primeira tentativa: Tenta salvar tudo
+    let { error } = await tryUpsert(allFields);
+    
+    // Segunda tentativa: Se houver erro de coluna inexistente (PGRST204)
+    if (error && (error.code === 'PGRST204' || error.message?.includes('column'))) {
+      console.warn('Detectado incompatibilidade de schema. Limpando campos estendidos e tentando salvar o essencial...');
+      
+      const basicFields = { ...allFields };
+      extendedFields.forEach(field => delete basicFields[field]);
+      
+      const { error: secondError } = await tryUpsert(basicFields);
+      error = secondError;
+      
+      if (!error) {
+        alert("⚠️ ATENÇÃO: Seus dados básicos foram salvos, mas as configurações avançadas (Asaas/Galeria) falharam porque as colunas não existem no seu banco de dados.\n\nPor favor, vá em ADMIN -> PAGAMENTOS e siga as instruções de 'Database Sync' para atualizar sua tabela.");
+        return;
+      }
+    }
     
     if (error) {
       const displayMsg = formatSupabaseError(error);
-      console.error('Erro Supabase Detalhado:', displayMsg);
-      
-      const fullAlert = `ERRO NO BANCO DE DADOS:\n\n${displayMsg}\n\nDICA: O banco de dados exige que os nomes das colunas sejam exatamente iguais aos enviados. Tente executar o comando SQL de atualização no editor do Supabase.`;
-      
-      alert(fullAlert);
+      console.error('Erro Supabase Crítico:', displayMsg);
+      alert(`ERRO AO SALVAR NO BANCO:\n\n${displayMsg}\n\nSe o erro persistir, verifique se sua tabela 'site_content' possui as colunas necessárias.`);
       throw new Error(displayMsg);
     }
   };

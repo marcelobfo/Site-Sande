@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle } from 'lucide-react';
-import { View, SiteContent, Product } from '../types';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin } from 'lucide-react';
+import { View, SiteContent, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface ProductsProps {
@@ -15,7 +15,21 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingClub, setPayingClub] = useState(false);
-  const [clubError, setClubError] = useState<{ message: string; type: 'api' | 'cors' | null } | null>(null);
+  const [showClubBillingForm, setShowClubBillingForm] = useState(false);
+  const [clubError, setClubError] = useState<{ message: string; type: 'api' | 'cors' | 'config' | null } | null>(null);
+
+  const [customerData, setCustomerData] = useState<AsaasCustomerData>({
+    name: '',
+    email: '',
+    cpfCnpj: '',
+    phone: '',
+    address: '',
+    addressNumber: '',
+    complement: '',
+    postalCode: '',
+    province: '',
+    city: ''
+  });
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -30,34 +44,75 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
     fetchProducts();
   }, []);
 
-  const handleClubCheckout = async () => {
+  const findUrlInResponse = (obj: any): string | null => {
+    if (!obj) return null;
+    if (typeof obj === 'string') {
+      const isAsaasUrl = obj.startsWith('http') && (obj.includes('asaas.com') || obj.includes('checkout') || obj.includes('pay'));
+      return isAsaasUrl ? obj : null;
+    }
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const found = findUrlInResponse(item);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (typeof obj === 'object') {
+      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl'];
+      for (const key of priorityKeys) {
+        if (obj[key] && typeof obj[key] === 'string' && obj[key].startsWith('http')) {
+          return obj[key];
+        }
+      }
+      for (const key in obj) {
+        const found = findUrlInResponse(obj[key]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const handleClubCheckout = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setClubError(null);
-    if (content.asaasapikey) {
+    
+    if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
+      const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+
+      if (!apiKey) {
+        setClubError({ message: "Configuração incompleta: API Key do Asaas não encontrada no painel.", type: 'config' });
+        return;
+      }
+
       setPayingClub(true);
       try {
-        const baseUrl = content.asaasissandbox 
-          ? 'https://sandbox.asaas.com/api/v3' 
-          : 'https://api.asaas.com/v3';
-
-        const response = await fetch(`${baseUrl}/checkouts`, {
+        const response = await fetch(content.asaas_backend_url, {
           method: 'POST',
           headers: {
-            'accept': 'application/json',
-            'content-type': 'application/json',
-            'access_token': content.asaasapikey
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            billingType: "CREDIT_CARD",
-            chargeType: "RECURRENT",
-            minutesToExpire: 100,
-            items: [{
-              name: content.clubetitle || "Clube Protagonista",
-              description: content.clubedescription || "Acesso anual completo.",
+            token: apiKey,
+            type: 'SUBSCRIPTION',
+            environment: content.asaas_use_sandbox ? 'sandbox' : 'production',
+            customer: {
+              name: customerData.name,
+              email: customerData.email,
+              cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
+              mobilePhone: customerData.phone.replace(/\D/g, ''),
+              postalCode: customerData.postalCode.replace(/\D/g, ''),
+              address: customerData.address,
+              addressNumber: customerData.addressNumber,
+              province: customerData.province,
+              complement: customerData.complement,
+              city: customerData.city
+            },
+            subscription: {
+              billingType: "CREDIT_CARD",
               value: Number(content.clubeprice),
-              quantity: 1
-            }],
-            subscription: { 
-              cycle: "YEARLY" 
+              cycle: "YEARLY",
+              description: content.clubedescription || "Assinatura Clube Protagonista"
             },
             callback: { 
               successUrl: `${window.location.origin}/#thank-you`,
@@ -66,34 +121,40 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
           })
         });
 
-        const data = await response.json();
-        if (response.ok && data.url) {
-          window.open(data.url, '_blank');
+        const rawData = await response.json().catch(() => ({}));
+        
+        if (!response.ok) {
+          throw new Error(rawData.message || `Erro do servidor (${response.status})`);
+        }
+
+        const checkoutUrl = findUrlInResponse(rawData);
+
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
         } else {
-          const msg = data.errors?.[0]?.description || 'Erro ao gerar checkout da assinatura.';
-          setClubError({ message: msg, type: 'api' });
+          if (rawData.message === "Workflow was started") {
+            throw new Error('O n8n respondeu que o fluxo começou, mas não esperou o link do Asaas. Mude o Webhook para "Respond: When last node finishes".');
+          }
+          throw new Error('Link de pagamento não encontrado na resposta. Por favor, finalize pelo WhatsApp.');
         }
       } catch (err: any) {
-        console.error('Falha crítica no clube:', err);
-        if (err.name === 'TypeError' || err.message.includes('fetch')) {
-          setClubError({ 
-            message: "A conexão com o servidor de pagamentos foi bloqueada por segurança (CORS). Mas não pare agora! Você pode assinar via WhatsApp em segundos.", 
-            type: 'cors' 
-          });
-        } else {
-          redirectToWhatsApp();
-        }
+        setClubError({ message: err.message, type: 'api' });
       } finally {
         setPayingClub(false);
       }
       return;
     }
+    
     redirectToWhatsApp();
   };
 
   const redirectToWhatsApp = () => {
-    const msg = `Olá Professora Sande! Quero assinar o *Clube Protagonista* (R$ ${Number(content.clubeprice).toFixed(2)}/ano) e garantir acesso a todos os materiais. Como posso realizar meu pagamento?`;
+    const msg = `Olá Professora Sande! Gostaria de assinar o *Clube Protagonista* (R$ ${Number(content.clubeprice).toFixed(2)}/ano) e ter acesso a todos os materiais. Nome: ${customerData.name || 'Pendente'}`;
     window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomerData({ ...customerData, [e.target.name]: e.target.value });
   };
 
   const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
@@ -103,7 +164,6 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
 
   return (
     <div className="bg-brand-cream/30 pb-32">
-      {/* Clube Section */}
       <section className="bg-brand-purple py-24 px-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
         <div className="max-w-6xl mx-auto bg-white rounded-[4rem] shadow-3xl overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/20">
@@ -123,31 +183,75 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
               <span className="text-gray-400 font-bold text-xl">/anual</span>
             </div>
 
-            {clubError && (
-              <div className="mb-6 p-6 bg-red-50 text-red-600 rounded-[2rem] flex flex-col gap-4 border border-red-100 animate-in slide-in-from-top">
-                <div className="flex items-start gap-3">
-                  <AlertCircle size={20} className="shrink-0 mt-0.5" />
-                  <p className="text-xs font-bold leading-tight">{clubError.message}</p>
-                </div>
-                {clubError.type === 'cors' && (
-                  <button 
-                    onClick={redirectToWhatsApp} 
-                    className="w-full bg-green-500 text-white py-4 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-green-600 transition-all shadow-lg shadow-green-100"
-                  >
-                    <MessageCircle size={18} /> ASSINAR VIA WHATSAPP
-                  </button>
-                )}
-              </div>
-            )}
-
-            <button onClick={handleClubCheckout} disabled={payingClub} className="bg-brand-orange text-white px-10 py-6 rounded-[1.5rem] font-black text-xl shadow-2xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-              {payingClub ? <Loader2 className="animate-spin" /> : <>LIBERAR ACESSO AGORA <ArrowRight size={20} /></>}
+            <button 
+              onClick={() => setShowClubBillingForm(true)} 
+              className="bg-brand-orange text-white px-10 py-6 rounded-[1.5rem] font-black text-xl shadow-2xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3"
+            >
+              LIBERAR ACESSO AGORA <ArrowRight size={20} />
             </button>
           </div>
         </div>
       </section>
 
-      {/* Materials Vitrine */}
+      {/* MODAL DE FATURAMENTO DO CLUBE */}
+      {showClubBillingForm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
+          <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Dados da Assinatura</h3>
+              <button onClick={() => setShowClubBillingForm(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all">
+                <X size={24} className="text-gray-300" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleClubCheckout} className="p-10 lg:p-12 overflow-y-auto custom-scrollbar flex-grow">
+              {clubError && (
+                <div className="mb-8 p-6 bg-red-50 border-2 border-red-100 rounded-3xl animate-in slide-in-from-top">
+                  <div className="flex items-start gap-4 text-red-600 font-bold mb-4">
+                    <AlertCircle size={24} className="shrink-0" />
+                    <span className="text-sm leading-tight">{clubError.message}</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={redirectToWhatsApp}
+                    className="w-full bg-green-500 text-white py-5 rounded-2xl font-black text-lg uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-green-600 transition-all shadow-xl"
+                  >
+                    <MessageCircle size={24} /> FINALIZAR NO WHATSAPP
+                  </button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="col-span-1 md:col-span-2">
+                  <BillingInput label="Nome Completo" icon={<User size={18}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
+                </div>
+                <BillingInput label="E-mail" icon={<Mail size={18}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
+                <BillingInput label="WhatsApp (DDD + Número)" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CEP (Só números)" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
+                <div className="col-span-1 md:col-span-2">
+                  <BillingInput label="Endereço" icon={<MapPin size={18}/>} name="address" value={customerData.address} onChange={handleInputChange} required />
+                </div>
+                <BillingInput label="Número" name="addressNumber" value={customerData.addressNumber} onChange={handleInputChange} required />
+                <BillingInput label="Bairro" name="province" value={customerData.province} onChange={handleInputChange} required />
+                <BillingInput label="Cidade" name="city" value={customerData.city} onChange={handleInputChange} required />
+                <BillingInput label="Complemento" name="complement" value={customerData.complement} onChange={handleInputChange} />
+              </div>
+
+              <div className="mt-12 flex flex-col lg:flex-row gap-4">
+                <button 
+                  type="submit"
+                  disabled={payingClub}
+                  className="flex-grow bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {payingClub ? <Loader2 className="animate-spin" /> : <><ShoppingCart size={24}/> GERAR PAGAMENTO</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <section className="max-w-7xl mx-auto px-4 mt-24">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16">
           <div>
@@ -162,7 +266,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
             </div>
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
               {categories.map(cat => (
-                <button key={cat} onClick={() => setActiveTab(cat)} className={`px-5 py-2.5 rounded-xl font-black text-xs whitespace-nowrap transition-all ${activeTab === cat ? 'bg-brand-purple text-white' : 'text-gray-400 hover:bg-brand-purple/5'}`}>{cat}</button>
+                <button key={cat} onClick={() => setActiveTab(cat)} className={`px-5 py-2.5 rounded-xl font-black text-sm whitespace-nowrap transition-all ${activeTab === cat ? 'bg-brand-purple text-white' : 'text-gray-400 hover:bg-brand-purple/5'}`}>{cat}</button>
               ))}
             </div>
           </div>
@@ -206,6 +310,26 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
           </div>
         )}
       </section>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
+      `}</style>
     </div>
   );
 };
+
+const BillingInput = ({ label, icon, required, ...props }: any) => (
+  <div className="w-full">
+    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">{label} {required && '*'}</label>
+    <div className="relative group">
+      {icon && <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-brand-purple transition-colors">{icon}</div>}
+      <input 
+        required={required}
+        {...props}
+        className={`w-full ${icon ? 'pl-14' : 'px-6'} py-5 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-2xl font-bold text-brand-dark transition-all outline-none shadow-inner`} 
+      />
+    </div>
+  </div>
+);

@@ -22,7 +22,7 @@ export interface AsaasCustomerData {
   complement?: string;
   postalCode: string;
   province: string;
-  city: string; // Pode ser o código IBGE ou o nome
+  city: string;
 }
 
 export interface BlogPost {
@@ -59,9 +59,11 @@ export interface SiteContent {
   aboutfeaturedimage1?: string;
   aboutfeaturedimage2?: string;
   aboutfeaturedimage3?: string;
-  // Integração Asaas
-  asaasapikey?: string;
-  asaasissandbox?: boolean;
+  // Integração Asaas (Arquitetura Segura)
+  asaas_production_key?: string;
+  asaas_sandbox_key?: string;
+  asaas_use_sandbox?: boolean;
+  asaas_backend_url?: string; // URL do n8n ou Backend que fará o POST para o Asaas
 }
 
 export type LeadStatus = 'Novo' | 'Em Contato' | 'Negociação' | 'Fechado' | 'Perdido';

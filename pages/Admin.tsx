@@ -5,7 +5,7 @@ import {
   CreditCard, Users, LayoutDashboard, Trash2, Plus, 
   Upload, Image as ImageIcon, FileText, Info, Edit3, X, Loader2, ShoppingCart, Palette, Globe, AlertTriangle,
   Eye, MessageSquare, MessageCircle, Mail, Calendar, GripVertical, Phone, Gem, ExternalLink, Image, Copy, Database,
-  Lightbulb, List, LayoutGrid, CheckCircle2, ChevronRight, ShieldCheck, RefreshCcw
+  Lightbulb, List, LayoutGrid, CheckCircle2, ChevronRight, ShieldCheck, RefreshCcw, Server, Terminal, Check, Wifi, WifiOff
 } from 'lucide-react';
 import { SiteContent, Lead, LeadStatus, Product, BlogPost } from '../types';
 import { supabase } from '../lib/supabase';
@@ -28,6 +28,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLeadDetailOpen, setIsLeadDetailOpen] = useState(false);
@@ -36,6 +37,8 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
   
   const [loading, setLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [testingEndpoint, setTestingEndpoint] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [productViewMode, setProductViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
@@ -74,6 +77,34 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     }
   };
 
+  const testConnection = async () => {
+    if (!form.asaas_backend_url) {
+      setTestResult({ success: false, message: "Insira uma URL primeiro." });
+      return;
+    }
+
+    setTestingEndpoint(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch(form.asaas_backend_url, {
+        method: 'OPTIONS', // Testa CORS e presença do endpoint
+      }).catch(e => { throw new Error("Falha na conexão (Possível erro de CORS ou servidor offline)"); });
+
+      setTestResult({ 
+        success: true, 
+        message: "Endpoint respondeu! (CORS Verificado)" 
+      });
+    } catch (err: any) {
+      setTestResult({ 
+        success: false, 
+        message: err.message || "Erro desconhecido ao testar." 
+      });
+    } finally {
+      setTestingEndpoint(false);
+    }
+  };
+
   const deleteItem = async (table: string, id: string) => {
     if (confirm("Deseja realmente excluir este item?")) {
       const { error } = await supabase.from(table).delete().eq('id', id);
@@ -105,7 +136,6 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     }
   };
 
-  // Fixed: Corrected try/catch syntax error that was breaking component scope
   const saveFormItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -140,6 +170,23 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     }
   };
 
+  const copySql = () => {
+    const sql = `ALTER TABLE site_content 
+ADD COLUMN IF NOT EXISTS asaas_production_key TEXT,
+ADD COLUMN IF NOT EXISTS asaas_sandbox_key TEXT,
+ADD COLUMN IF NOT EXISTS asaas_use_sandbox BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS asaas_backend_url TEXT,
+ADD COLUMN IF NOT EXISTS aboutfeaturedimage1 TEXT,
+ADD COLUMN IF NOT EXISTS aboutfeaturedimage2 TEXT,
+ADD COLUMN IF NOT EXISTS aboutfeaturedimage3 TEXT;
+
+-- Resetar cache do PostgREST
+NOTIFY pgrst, 'reload schema';`;
+    navigator.clipboard.writeText(sql);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const SidebarItem = ({ id, icon, label }: { id: Tab, icon: React.ReactNode, label: string }) => (
     <button onClick={() => { setActiveTab(id); setErrorMessage(null); }} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl font-black text-sm transition-all ${activeTab === id ? 'bg-brand-purple text-white shadow-xl' : 'text-gray-400 hover:bg-brand-lilac/10'}`}>
       <div className="shrink-0">{icon}</div>
@@ -162,7 +209,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
           <SidebarItem id="content_home" icon={<HomeIcon size={20} />} label="Home & Clube" />
           <SidebarItem id="content_about" icon={<Info size={20} />} label="Sobre & Contato" />
           <SidebarItem id="settings" icon={<Palette size={20} />} label="Aparência" />
-          <SidebarItem id="payments" icon={<CreditCard size={20} />} label="Config. Asaas" />
+          <SidebarItem id="payments" icon={<CreditCard size={20} />} label="Pagamentos Asaas" />
         </nav>
       </aside>
 
@@ -172,7 +219,8 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
             {activeTab === 'leads' ? 'Kanban de Leads' : 
              activeTab === 'manage_store' ? 'Gerenciar Vitrine' :
              activeTab === 'manage_blog' ? 'Gerenciar Blog' :
-             activeTab === 'settings' ? 'Aparência do Site' : 'Configurações'}
+             activeTab === 'settings' ? 'Aparência do Site' : 
+             activeTab === 'payments' ? 'Configurações de Pagamento' : 'Configurações'}
           </h1>
           <div className="flex gap-4">
             {['content_home', 'content_about', 'settings', 'payments'].includes(activeTab) && (
@@ -231,7 +279,6 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
               </div>
             </Section>
 
-            {/* Nova seção de Cookies no Admin */}
             <Section title="Privacidade e Cookies" icon={<ShieldCheck className="text-brand-orange"/>}>
               <div className="p-8 bg-brand-cream/30 border border-brand-orange/10 rounded-3xl space-y-6">
                 <div className="flex items-center gap-4">
@@ -254,7 +301,107 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
           </div>
         )}
 
-        {/* ... manter as outras abas manage_store, manage_blog, content_home, content_about, payments como estão no arquivo original ... */}
+        {activeTab === 'payments' && (
+          <div className="max-w-4xl space-y-10">
+            <Section title="Integração Bancária Asaas" icon={<CreditCard className="text-brand-purple"/>}>
+              <div className="space-y-8">
+                <div className="bg-amber-50 border-2 border-amber-100 p-8 rounded-3xl flex items-start gap-4">
+                  <AlertTriangle className="text-amber-500 shrink-0" size={24} />
+                  <div className="text-xs font-medium text-amber-700 leading-relaxed">
+                    <strong className="block mb-2 uppercase tracking-widest">Atenção sobre CORS:</strong>
+                    Devido às restrições de segurança do navegador, você **NÃO** deve fazer requisições diretas do site para a API do Asaas. 
+                    Utilize o campo **Backend URL** abaixo para apontar para seu Webhook do n8n ou servidor proxy que fará a ponte segura.
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <AdminInput label="API Key Produção ($aact...)" type="password" value={form.asaas_production_key} onChange={v => setForm({...form, asaas_production_key: v})} />
+                  <AdminInput label="API Key Sandbox ($aact_hmlg...)" type="password" value={form.asaas_sandbox_key} onChange={v => setForm({...form, asaas_sandbox_key: v})} />
+                </div>
+
+                <div className="flex items-center gap-4 p-8 bg-brand-cream/50 border border-brand-orange/20 rounded-3xl">
+                  <input type="checkbox" id="asaas_use_sandbox" checked={form.asaas_use_sandbox} onChange={e => setForm({...form, asaas_use_sandbox: e.target.checked})} className="w-8 h-8 rounded-lg accent-brand-purple cursor-pointer" />
+                  <div>
+                    <label htmlFor="asaas_use_sandbox" className="font-black text-brand-dark uppercase text-sm block cursor-pointer">Usar Ambiente Sandbox (Homologação)</label>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Ative para testar sem cobrar valores reais.</p>
+                  </div>
+                </div>
+
+                <div className="h-px bg-gray-100"></div>
+
+                <Section title="Ponte Segura (Backend)" icon={<Server className="text-brand-orange" />}>
+                  <div className="space-y-6">
+                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                      <div className="flex-grow">
+                        <AdminInput label="URL do Webhook ou Proxy (n8n/Node/PHP)" placeholder="Ex: https://n8n.seuservidor.com/webhook/asaas" value={form.asaas_backend_url} onChange={v => setForm({...form, asaas_backend_url: v})} />
+                      </div>
+                      <button 
+                        onClick={testConnection} 
+                        disabled={testingEndpoint}
+                        className={`px-8 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all flex items-center gap-2 mb-0.5 ${testResult?.success ? 'bg-green-500 text-white' : testResult?.success === false ? 'bg-red-500 text-white' : 'bg-brand-dark text-white hover:bg-black'}`}
+                      >
+                        {testingEndpoint ? <Loader2 className="animate-spin" size={16} /> : testResult?.success ? <Wifi size={16}/> : <WifiOff size={16}/>}
+                        TESTAR CONEXÃO
+                      </button>
+                    </div>
+                    {testResult && (
+                      <p className={`text-[10px] font-black uppercase px-4 py-2 rounded-lg inline-block ${testResult.success ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                        {testResult.message}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-gray-400 font-bold uppercase leading-relaxed">
+                      Se este campo estiver vazio, o checkout será redirecionado automaticamente para o **WhatsApp do Suporte** com os dados do cliente preenchidos.
+                    </p>
+                  </div>
+                </Section>
+                
+                {/* DATABASE SYNC HELPER */}
+                <div className="mt-12 bg-gray-900 rounded-[2.5rem] p-8 lg:p-10 text-white overflow-hidden relative border-t-8 border-brand-orange shadow-2xl">
+                  <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <Terminal size={120} />
+                  </div>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-brand-orange p-2 rounded-xl">
+                        <Database size={20} />
+                      </div>
+                      <h4 className="font-black text-sm uppercase tracking-widest">Database Sync (Supabase Fix)</h4>
+                    </div>
+                    <p className="text-xs text-gray-400 font-medium mb-8 leading-relaxed">
+                      Se você recebeu o erro <span className="text-white font-bold italic">PGRST204 (Column not found)</span>, copie o código abaixo e execute no **SQL Editor** do seu painel Supabase. Isso criará todas as colunas necessárias para o Asaas e para a Galeria de Imagens:
+                    </p>
+                    <div className="bg-black/50 p-6 rounded-2xl font-mono text-[11px] text-green-400 mb-6 border border-white/5 relative group">
+                      <button 
+                        onClick={copySql}
+                        className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 p-2 rounded-lg text-white transition-all flex items-center gap-2"
+                      >
+                        {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                        {copied ? 'Copiado!' : 'Copiar Script'}
+                      </button>
+                      <pre className="whitespace-pre-wrap leading-relaxed">
+{`ALTER TABLE site_content 
+ADD COLUMN IF NOT EXISTS asaas_production_key TEXT,
+ADD COLUMN IF NOT EXISTS asaas_sandbox_key TEXT,
+ADD COLUMN IF NOT EXISTS asaas_use_sandbox BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS asaas_backend_url TEXT,
+ADD COLUMN IF NOT EXISTS aboutfeaturedimage1 TEXT,
+ADD COLUMN IF NOT EXISTS aboutfeaturedimage2 TEXT,
+ADD COLUMN IF NOT EXISTS aboutfeaturedimage3 TEXT;
+
+-- Forçar atualização do cache do Supabase
+NOTIFY pgrst, 'reload schema';`}
+                      </pre>
+                    </div>
+                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest bg-white/5 p-4 rounded-xl border border-white/5">
+                      💡 Após executar o SQL, aguarde 10 segundos e tente salvar suas alterações no painel administrativo novamente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Section>
+          </div>
+        )}
+
         {activeTab === 'manage_store' && (
           <div className="space-y-8">
             <div className="flex items-center gap-4 bg-white p-4 rounded-2xl w-fit shadow-sm">
@@ -339,26 +486,9 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
             </Section>
           </div>
         )}
-
-        {activeTab === 'payments' && (
-          <div className="max-w-4xl space-y-10">
-            <Section title="Integração Bancária (Asaas)" icon={<CreditCard className="text-brand-purple"/>}>
-              <div className="space-y-6">
-                <AdminInput label="Token de Acesso (API Key)" type="password" value={form.asaasapikey} onChange={v => setForm({...form, asaasapikey: v})} />
-                <div className="flex items-center gap-4 p-8 bg-brand-cream/50 border border-brand-orange/20 rounded-3xl">
-                  <input type="checkbox" id="sandbox_mode" checked={form.asaasissandbox} onChange={e => setForm({...form, asaasissandbox: e.target.checked})} className="w-8 h-8 rounded-lg accent-brand-purple cursor-pointer" />
-                  <div>
-                    <label htmlFor="sandbox_mode" className="font-black text-brand-dark uppercase text-sm block cursor-pointer">Ambiente de Testes (Sandbox)</label>
-                    <p className="text-xs text-gray-400 font-bold uppercase mt-1">Marque apenas se estiver usando credenciais de homologação.</p>
-                  </div>
-                </div>
-              </div>
-            </Section>
-          </div>
-        )}
       </div>
 
-      {/* LEAD DETAIL MODAL - KANBAN FIX */}
+      {/* LEAD DETAIL MODAL */}
       {isLeadDetailOpen && selectedLead && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
           <div className="bg-white w-full max-w-3xl rounded-[3.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.25)] overflow-hidden animate-in zoom-in-95 duration-300">
@@ -446,7 +576,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
                 <>
                   <AdminInput label="Preço de Venda (R$)" type="number" value={editItem.price} onChange={v => setEditItem({...editItem, price: Number(v)})} />
                   <AdminInput label="Preço de Tabela (R$)" type="number" value={editItem.old_price} onChange={v => setEditItem({...editItem, old_price: Number(v)})} />
-                  <div className="col-span-2"><AdminInput label="Checkout URL (Link Direto Hotmart/Asaas)" value={editItem.checkout_url} onChange={v => setEditItem({...editItem, checkout_url: v})} /></div>
+                  <div className="col-span-2"><AdminInput label="Checkout URL (Opcional - Sobrescreve Asaas)" value={editItem.checkout_url} onChange={v => setEditItem({...editItem, checkout_url: v})} /></div>
                   <AdminInput label="Categoria do Produto" value={editItem.category} onChange={v => setEditItem({...editItem, category: v})} />
                   <div className="col-span-2"><AdminInput label="Descrição Completa" textarea value={editItem.description} onChange={v => setEditItem({...editItem, description: v})} /></div>
                 </>
@@ -458,7 +588,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
                 </>
               )}
               <div className="col-span-2">
-                <ImageUp label="Imagem de Capa (800x800 ou 16:9)" current={editItem.image_url} onUpload={e => handleImageUpload(e, 'image_url', 'modal')} />
+                <ImageUp label="Imagem de Capa" current={editItem.image_url} onUpload={e => handleImageUpload(e, 'image_url', 'modal')} />
               </div>
               <div className="col-span-2 pt-6">
                 <button disabled={loading} className="w-full bg-brand-purple text-white py-8 rounded-[2.5rem] font-black text-2xl hover:bg-brand-dark transition-all shadow-2xl shadow-purple-200">
@@ -498,13 +628,13 @@ const Section = ({ title, icon, children }: any) => (
   </div>
 );
 
-const AdminInput = ({ label, value, onChange, textarea, type = "text" }: any) => (
+const AdminInput = ({ label, value, onChange, textarea, type = "text", placeholder }: any) => (
   <div className="w-full">
     <label className="label-admin">{label}</label>
     {textarea ? (
-      <textarea rows={6} value={value || ''} onChange={e => onChange(e.target.value)} className="w-full p-8 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-[2.5rem] font-bold text-brand-dark transition-all resize-none outline-none shadow-inner" />
+      <textarea rows={6} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full p-8 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-[2.5rem] font-bold text-brand-dark transition-all resize-none outline-none shadow-inner" />
     ) : (
-      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-[1.5rem] font-bold text-brand-dark transition-all outline-none shadow-inner" />
+      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-[1.5rem] font-bold text-brand-dark transition-all outline-none shadow-inner" />
     )}
   </div>
 );
