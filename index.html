@@ -12,17 +12,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <script>
-        // Diagnóstico de erros em produção
+        // Diagnóstico e Tratamento de Erros de Inicialização
         window.onerror = function(msg, url, line, col, error) {
-            console.error("Erro de Produção:", msg, "em", url, ":", line);
+            console.error("Erro Detectado:", msg, "URL:", url);
             const root = document.getElementById('root');
             if (root && root.innerHTML === "") {
                 root.innerHTML = `
-                    <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #FFFBEB; min-height: 100vh;">
-                        <h2 style="color: #7E22CE;">Erro de Carregamento</h2>
-                        <p style="color: #6B7280;">Não foi possível iniciar a aplicação. Verifique sua conexão ou tente recarregar.</p>
-                        <button onclick="location.reload()" style="background: #7E22CE; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold; margin-top: 20px;">
-                            Recarregar Página
+                    <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #FFFBEB; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <h2 style="color: #7E22CE; font-weight: 900; margin-bottom: 10px;">PROBLEMA DE CARREGAMENTO</h2>
+                        <p style="color: #6B7280; max-width: 400px; margin-bottom: 20px;">Limpando cache ou recarregando a página deve resolver.</p>
+                        <button onclick="location.reload()" style="background: #7E22CE; color: white; border: none; padding: 15px 30px; border-radius: 15px; cursor: pointer; font-weight: bold; box-shadow: 0 10px 20px rgba(126, 34, 206, 0.2);">
+                            RECARREGAR SITE
                         </button>
                     </div>`;
             }
@@ -42,12 +42,8 @@
                             navy: '#1E1B4B'
                         }
                     },
-                    fontFamily: {
-                        sans: ['Montserrat', 'sans-serif']
-                    },
-                    boxShadow: {
-                        '3xl': '0 35px 60px -15px rgba(0, 0, 0, 0.1)',
-                    }
+                    fontFamily: { sans: ['Montserrat', 'sans-serif'] },
+                    boxShadow: { '3xl': '0 35px 60px -15px rgba(0, 0, 0, 0.1)' }
                 }
             }
         }
@@ -55,29 +51,29 @@
     
     <style>
         body { font-family: 'Montserrat', sans-serif; background-color: #FFFBEB; margin: 0; padding: 0; }
-        .teacher-gradient { background: linear-gradient(135deg, #7E22CE 0%, #F97316 100%); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
-    <!-- Importmap Estrito para Produção (React 19.0.0 fix) -->
+    <!-- Importmap Estrito para Produção -->
     <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@19.0.0",
-        "react/": "https://esm.sh/react@19.0.0/",
-        "react-dom": "https://esm.sh/react-dom@19.0.0",
-        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
-        "lucide-react": "https://esm.sh/lucide-react@0.473.0",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.473.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.1"
+  }
+}
+</script>
 </head>
 <body>
     <div id="root"></div>
-    <!-- Ponto de entrada carregado como módulo ESM -->
-    <script type="module" src="index.tsx"></script>
+    <!-- No build, o Vite transformará isso no caminho correto do arquivo JS compilado -->
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

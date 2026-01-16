@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'https://esm.sh/react@19.0.0';
-import { MessageCircle } from 'https://esm.sh/lucide-react@0.473.0';
+import React, { useState, useEffect } from 'react';
+import { MessageCircle } from 'lucide-react';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Products } from './pages/Products';
@@ -30,12 +30,6 @@ const DEFAULT_CONTENT: SiteContent = {
   asaas_use_sandbox: true
 };
 
-const formatSupabaseError = (error: any): string => {
-  if (!error) return 'Erro desconhecido';
-  if (typeof error === 'string') return error;
-  return error.message || JSON.stringify(error);
-};
-
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('home');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -58,7 +52,7 @@ const App: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error('Erro ao carregar configurações:', formatSupabaseError(err));
+        console.error('Erro ao carregar configurações:', err);
       }
     };
 
