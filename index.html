@@ -5,21 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Professora Protagonista | Sande Almeida</title>
+    
+    <!-- Tailwind Play CDN (Otimizado para Runtime) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <script>
-        // Captura erros críticos de carregamento para evitar tela branca sem diagnóstico
+        // Diagnóstico de erros em produção
         window.onerror = function(msg, url, line, col, error) {
-            console.error("Erro Crítico detectado:", msg, "em", url, ":", line);
+            console.error("Erro de Produção:", msg, "em", url, ":", line);
             const root = document.getElementById('root');
             if (root && root.innerHTML === "") {
-                root.innerHTML = `<div style="padding: 20px; color: red; font-family: sans-serif;">
-                    <h2>Erro de Carregamento</h2>
-                    <p>${msg}</p>
-                    <small>${url} (linha ${line})</small>
-                    <br><br>
-                    <button onclick="location.reload()" style="padding: 10px; cursor: pointer;">Recarregar Página</button>
-                </div>`;
+                root.innerHTML = `
+                    <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #FFFBEB; min-height: 100vh;">
+                        <h2 style="color: #7E22CE;">Ops! Tivemos um problema no carregamento.</h2>
+                        <p style="color: #6B7280;">Isso pode ser cache do navegador ou uma atualização no servidor.</p>
+                        <button onclick="location.reload()" style="background: #7E22CE; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold; margin-top: 20px;">
+                            Recarregar Página
+                        </button>
+                    </div>`;
             }
         };
 
@@ -47,15 +52,16 @@
             }
         }
     </script>
+    
     <style>
         body { font-family: 'Montserrat', sans-serif; background-color: #FFFBEB; margin: 0; padding: 0; }
-        .teacher-gradient {
-            background: linear-gradient(135deg, #7E22CE 0%, #F97316 100%);
-        }
+        .teacher-gradient { background: linear-gradient(135deg, #7E22CE 0%, #F97316 100%); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
-<script type="importmap">
+
+    <!-- Importmap robusto e unificado para Produção -->
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@19.0.0",
@@ -71,5 +77,7 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- Ponto de entrada da aplicação (CRÍTICO para evitar tela branca) -->
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>
