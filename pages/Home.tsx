@@ -26,40 +26,43 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
 
   return (
     <div className="space-y-16 md:space-y-32 pb-20 md:pb-32 overflow-x-hidden">
-      {/* Hero Section */}
-      <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center bg-brand-dark overflow-hidden px-4 pt-12 md:pt-32 pb-0">
+      {/* Hero Section - Mobile Fix: Adjusted font sizes and container spacing */}
+      <section className="relative min-h-[90vh] lg:min-h-[90vh] flex items-stretch bg-brand-dark overflow-hidden px-4 pt-12 md:pt-32 pb-0">
         <div className="absolute top-10 left-10 text-brand-pink/20 animate-pulse hidden md:block">
            <svg width="150" height="30" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M0 10L10 0L20 10L30 0L40 10L50 0L60 10L70 0L80 10L90 0L100 10" stroke="currentColor" strokeWidth="3"/>
            </svg>
         </div>
         
-        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-center gap-8 md:gap-12 relative z-10 h-full">
-          <div className="text-white space-y-6 md:space-y-10 pb-8 lg:pb-32 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 md:px-6 md:py-2.5 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest border border-white/5 mx-auto lg:mx-0">
+        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-center lg:items-end gap-10 md:gap-12 relative z-10 h-full">
+          {/* Text Column - Responsive Typography */}
+          <div className="text-white space-y-4 md:space-y-10 pb-8 md:pb-12 lg:pb-32 text-center lg:text-left lg:self-center">
+            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 md:px-6 md:py-2.5 rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest border border-white/5 mx-auto lg:mx-0">
               <Sparkles size={14} className="text-brand-orange" /> Método Protagonizar
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[5.8rem] font-black leading-[1.1] lg:leading-[0.95] tracking-tighter uppercase italic">
+            
+            <h1 className="text-[2.2rem] sm:text-5xl md:text-6xl lg:text-[5.8rem] font-black leading-[1] lg:leading-[0.95] tracking-tighter uppercase italic break-words">
               Inspire.<br className="hidden sm:block"/>Inove.<br className="hidden sm:block"/>
               <span className="text-brand-orange not-italic">Protagonize.</span>
             </h1>
             
-            <p className="text-base md:text-xl lg:text-2xl font-medium text-white/80 leading-relaxed max-w-xl mx-auto lg:mx-0">
-              {content.homeherosub || 'Aprenda a utilizar Metodologias Ativas em suas aulas e conquiste mais resultados com os alunos, reduzindo o tempo de planejamento.'}
+            <p className="text-sm md:text-xl lg:text-2xl font-medium text-white/80 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 md:px-0">
+              {content.homeherosub || 'Aprenda a utilizar Metodologias Ativas em suas aulas e conquiste mais resultados com os alunos.'}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center lg:justify-start">
-              <button onClick={() => onNavigate('products')} className="bg-brand-orange text-white px-8 py-5 md:px-12 md:py-6 rounded-[1.5rem] md:rounded-[2rem] font-black text-lg md:text-xl shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-3 w-full sm:w-fit group">
+            <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center lg:justify-start px-4 md:px-0 pt-4">
+              <button onClick={() => onNavigate('products')} className="bg-brand-orange text-white px-8 py-4 md:px-12 md:py-6 rounded-[1.2rem] md:rounded-[2rem] font-black text-lg md:text-xl shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-3 w-full sm:w-fit group">
                 COMEÇAR JORNADA <ArrowRight className="group-hover:translate-x-2 transition-transform" />
               </button>
             </div>
           </div>
 
-          <div className="relative flex justify-center lg:justify-end self-end mt-8 lg:mt-0">
+          {/* Image Column - Anchored to bottom with better mobile scaling */}
+          <div className="relative flex justify-center lg:justify-end lg:items-end self-end mt-4 md:mt-8 lg:mt-0">
             <div className="absolute bottom-0 right-0 lg:right-0 w-[95%] h-[98%] bg-brand-purple/20 rounded-t-full blur-3xl"></div>
             <img 
               src={content.homeheroimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png"} 
-              className="relative z-20 max-w-[90%] sm:max-w-[70%] lg:max-w-none lg:w-[125%] h-auto drop-shadow-2xl block mb-0 lg:translate-x-16 origin-bottom" 
+              className="relative z-20 max-w-[80%] sm:max-w-[60%] lg:max-w-none lg:w-[125%] h-auto drop-shadow-2xl block mb-0 lg:translate-x-16 origin-bottom transform-gpu" 
               alt="Sande Almeida" 
             />
           </div>

@@ -64,9 +64,13 @@ export interface SiteContent {
   asaas_sandbox_key?: string;
   asaas_use_sandbox?: boolean;
   asaas_backend_url?: string; // URL do n8n ou Backend que fará o POST para o Asaas
+  // Marketing & Analytics
+  google_analytics_id?: string;
+  meta_pixel_id?: string;
+  meta_api_token?: string;
 }
 
-export type LeadStatus = 'Novo' | 'Em Contato' | 'Negociação' | 'Fechado' | 'Perdido';
+export type LeadStatus = 'Novo' | 'Aguardando Pagamento' | 'Pago' | 'Cancelado' | 'Em Contato' | 'Fechado' | 'Perdido';
 
 export interface Lead {
   id: string;
@@ -76,6 +80,10 @@ export interface Lead {
   subject: string;
   message: string;
   status: LeadStatus;
+  product_id?: string;
+  product_name?: string;
+  value?: number;
+  payment_id?: string;
   created_at: string;
 }
 

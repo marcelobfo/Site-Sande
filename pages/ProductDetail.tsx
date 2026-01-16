@@ -73,7 +73,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
       return null;
     }
     if (typeof obj === 'object') {
-      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl'];
+      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl', 'invoiceUrl'];
       for (const key of priorityKeys) {
         if (obj[key] && typeof obj[key] === 'string' && obj[key].startsWith('http')) {
           return obj[key];
@@ -91,86 +91,106 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     if (e) e.preventDefault();
     if (!product) return;
     setErrorState({ message: '', type: null });
+    setPaying(true);
 
-    if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
-      const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
-      
-      if (!apiKey) {
-        setErrorState({ message: "API Key do Asaas não configurada no painel.", type: 'config' });
-        return;
-      }
+    try {
+      // 1. Criar Lead no CRM (Supabase) antes de chamar o webhook
+      const { data: leadData, error: leadError } = await supabase
+        .from('leads')
+        .insert([{
+          name: customerData.name,
+          email: customerData.email,
+          whatsapp: customerData.phone,
+          subject: `Interesse: ${product.title}`,
+          message: `Iniciou checkout para o produto: ${product.title}`,
+          status: 'Aguardando Pagamento',
+          product_id: product.id,
+          product_name: product.title,
+          value: Number(product.price),
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-      setPaying(true);
-      try {
+      if (leadError) console.error("Erro ao salvar lead:", leadError);
+
+      // 2. Disparar Webhook para o n8n
+      if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
+        const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+        
+        if (!apiKey) {
+          throw new Error("Configuração incompleta: API Key do Asaas não encontrada.");
+        }
+
+        const payload = {
+          token: apiKey,
+          environment: content.asaas_use_sandbox ? 'sandbox' : 'production',
+          customer: {
+            name: customerData.name,
+            email: customerData.email,
+            cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
+            mobilePhone: customerData.phone.replace(/\D/g, ''),
+            postalCode: customerData.postalCode.replace(/\D/g, ''),
+            address: customerData.address,
+            addressNumber: customerData.addressNumber,
+            province: customerData.province,
+            complement: customerData.complement,
+            city: customerData.city
+          },
+          product: {
+            id: product.id,
+            name: product.title,
+            value: Number(product.price),
+            description: product.description // Descrição incluída como solicitado
+          },
+          type: 'PRODUCT_SALE',
+          lead_id: leadData?.id, // Envia o ID do lead para o n8n poder atualizar depois
+          callback: {
+            successUrl: `${window.location.origin}/#thank-you` // Redirecionamento após aprovação
+          }
+        };
+
         const response = await fetch(content.asaas_backend_url, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify({
-            token: apiKey,
-            environment: content.asaas_use_sandbox ? 'sandbox' : 'production',
-            customer: {
-              name: customerData.name,
-              email: customerData.email,
-              cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
-              mobilePhone: customerData.phone.replace(/\D/g, ''),
-              postalCode: customerData.postalCode.replace(/\D/g, ''),
-              address: customerData.address,
-              addressNumber: customerData.addressNumber,
-              province: customerData.province,
-              complement: customerData.complement,
-              city: customerData.city
-            },
-            product: {
-              id: product.id,
-              name: product.title,
-              value: Number(product.price)
-            }
-          })
+          body: JSON.stringify(payload)
         });
 
         const rawData = await response.json().catch(() => ({}));
         
         if (!response.ok) {
-          throw new Error(rawData.message || `Erro do servidor (${response.status}).`);
+          throw new Error(rawData.message || `Erro ${response.status}: Verifique se o n8n está online.`);
         }
 
         const checkoutUrl = findUrlInResponse(rawData);
         
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
-          setShowBillingForm(false);
         } else {
-          if (product.checkout_url) {
-            window.location.href = product.checkout_url;
-            return;
-          }
-          if (Object.keys(rawData).length === 0 || rawData.message === "Workflow was started") {
-            throw new Error('CONFIGURAÇÃO N8N: O fluxo não retornou o link.');
-          }
-          throw new Error('Não encontramos o link de pagamento.');
+          throw new Error('Link não encontrado. Finalize pelo WhatsApp para garantir seu material.');
         }
-      } catch (err: any) {
-        setErrorState({ message: err.message, type: 'api' });
-      } finally {
-        setPaying(false);
+      } else {
+        // Fallback se não houver backend configurado
+        if (product.checkout_url) {
+          window.open(product.checkout_url, '_blank');
+        } else {
+          redirectToWhatsApp();
+        }
       }
-      return;
+    } catch (err: any) {
+      console.error('Checkout Error:', err);
+      setErrorState({ message: err.message, type: 'api' });
+    } finally {
+      setPaying(false);
     }
-
-    if (product.checkout_url) {
-      window.open(product.checkout_url, '_blank');
-      return;
-    }
-
-    redirectToWhatsApp();
   };
 
   const redirectToWhatsApp = () => {
     if (!product) return;
-    const msg = `Olá Professora Sande! Gostaria de adquirir o material: *${product.title}*. Meus dados: ${customerData.name || 'Não informado'}`;
+    const msg = `Olá! Quero o material: *${product.title}*. Nome: ${customerData.name || 'Pendente'}`;
     window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -195,7 +215,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           className="group flex items-center gap-2 text-brand-purple font-black mb-8 md:mb-12 hover:translate-x-[-8px] transition-all text-sm"
         >
           <ArrowLeft size={18} className="group-hover:scale-125 transition-transform" /> 
-          VOLTAR
+          VOLTAR PARA A LOJA
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 lg:gap-24 items-start">
@@ -204,7 +224,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
               <div className="absolute -inset-4 bg-brand-purple/10 rounded-[2.5rem] md:rounded-[4.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
               <img 
                 src={product.image_url} 
-                className="relative w-full rounded-[2.5rem] md:rounded-[4rem] shadow-3xl border-4 md:border-8 border-white object-cover aspect-square transition-transform duration-500" 
+                className="relative w-full rounded-[2.5rem] md:rounded-[4rem] shadow-3xl border-4 md:border-8 border-white object-cover aspect-square" 
                 alt={product.title} 
               />
               <div className="absolute -bottom-4 -right-4 md:-bottom-8 md:-right-8 bg-brand-orange text-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-3xl rotate-6 animate-bounce">
@@ -248,10 +268,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
                     className="w-full bg-brand-orange text-white py-6 md:py-8 rounded-[1.5rem] md:rounded-[2.5rem] font-black text-xl md:text-2xl lg:text-3xl shadow-2xl hover:bg-brand-dark transition-all active:scale-95 flex items-center justify-center gap-4"
                   >
                     <ShoppingCart size={28} className="md:size-[32px]" /> 
-                    QUERO AGORA
+                    COMPRAR AGORA
                   </button>
                   <p className="text-gray-400 text-[9px] md:text-[11px] font-bold text-center flex items-center justify-center gap-2 uppercase tracking-widest">
-                    <ShieldCheck size={14} className="text-green-500" /> Transação Segura
+                    <ShieldCheck size={14} className="text-green-500" /> Checkout Seguro via Asaas
                   </p>
                 </div>
               </div>
@@ -264,21 +284,37 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
           <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
             <div className="p-6 md:p-10 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-xl md:text-2xl font-black text-brand-dark uppercase tracking-tighter">Dados de Cobrança</h3>
-              <button onClick={() => setShowBillingForm(false)} className="p-2 md:p-3 hover:bg-gray-100 rounded-2xl transition-all">
+              <div className="flex items-center gap-3">
+                <ShoppingCart className="text-brand-purple" size={24} />
+                <h3 className="text-xl md:text-2xl font-black text-brand-dark uppercase tracking-tighter">Faturamento</h3>
+              </div>
+              <button onClick={() => { setShowBillingForm(false); setErrorState({ message: '', type: null }); }} className="p-2 md:p-3 hover:bg-gray-100 rounded-2xl transition-all">
                 <X size={24} className="text-gray-300" />
               </button>
             </div>
             
             <form onSubmit={handleCheckout} className="p-6 md:p-10 lg:p-12 overflow-y-auto custom-scrollbar flex-grow">
+              {errorState.message && (
+                <div className="mb-8 p-6 bg-red-50 border-2 border-red-100 rounded-2xl flex items-start gap-4 animate-in slide-in-from-top">
+                  <AlertCircle className="text-red-500 shrink-0" size={24} />
+                  <div>
+                    <p className="text-red-800 font-black text-xs uppercase tracking-widest mb-1">Erro no Processamento</p>
+                    <p className="text-red-600 text-sm font-medium">{errorState.message}</p>
+                    <button type="button" onClick={redirectToWhatsApp} className="mt-3 text-red-700 font-black text-[10px] uppercase underline flex items-center gap-2">
+                      <MessageCircle size={14} /> Tentar pelo WhatsApp
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Nome Completo" icon={<User size={18}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
                 </div>
                 <BillingInput label="E-mail" icon={<Mail size={18}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
-                <BillingInput label="WhatsApp" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
-                <BillingInput label="CPF ou CNPJ" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
-                <BillingInput label="CEP" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
+                <BillingInput label="WhatsApp (DDD + Número)" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
+                <BillingInput label="CEP (Só números)" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Endereço" icon={<MapPin size={18}/>} name="address" value={customerData.address} onChange={handleInputChange} required />
                 </div>
@@ -294,7 +330,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
                   disabled={paying}
                   className="w-full bg-brand-purple text-white py-5 md:py-6 rounded-2xl md:rounded-3xl font-black text-lg md:text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
-                  {paying ? <Loader2 className="animate-spin" /> : <><ShoppingCart size={24}/> FINALIZAR PEDIDO</>}
+                  {paying ? (
+                    <><Loader2 className="animate-spin" /> GERANDO LINK...</>
+                  ) : (
+                    <><ShoppingCart size={24}/> GERAR PAGAMENTO</>
+                  )}
                 </button>
               </div>
             </form>

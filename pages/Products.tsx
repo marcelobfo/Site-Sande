@@ -58,7 +58,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
       return null;
     }
     if (typeof obj === 'object') {
-      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl'];
+      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl', 'invoiceUrl'];
       for (const key of priorityKeys) {
         if (obj[key] && typeof obj[key] === 'string' && obj[key].startsWith('http')) {
           return obj[key];
@@ -75,50 +75,71 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
   const handleClubCheckout = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setClubError(null);
+    setPayingClub(true);
     
-    if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
-      const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+    try {
+      // 1. Criar Lead no CRM (Supabase)
+      const { data: leadData, error: leadError } = await supabase
+        .from('leads')
+        .insert([{
+          name: customerData.name,
+          email: customerData.email,
+          whatsapp: customerData.phone,
+          subject: `Interesse: Clube Protagonista`,
+          message: `Iniciou checkout para a Assinatura do Clube`,
+          status: 'Aguardando Pagamento',
+          product_id: 'CLUBE-ANUAL',
+          product_name: content.clubetitle || 'Clube Professora Protagonista',
+          value: Number(content.clubeprice),
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-      if (!apiKey) {
-        setClubError({ message: "Configuração incompleta: API Key do Asaas não encontrada no painel.", type: 'config' });
-        return;
-      }
+      if (leadError) console.error("Erro ao salvar lead do clube:", leadError);
 
-      setPayingClub(true);
-      try {
+      if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
+        const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+
+        if (!apiKey) {
+          throw new Error("API Key não encontrada.");
+        }
+
+        const payload = {
+          token: apiKey,
+          environment: content.asaas_use_sandbox ? 'sandbox' : 'production',
+          customer: {
+            name: customerData.name,
+            email: customerData.email,
+            cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
+            mobilePhone: customerData.phone.replace(/\D/g, ''),
+            postalCode: customerData.postalCode.replace(/\D/g, ''),
+            address: customerData.address,
+            addressNumber: customerData.addressNumber,
+            province: customerData.province,
+            complement: customerData.complement,
+            city: customerData.city
+          },
+          product: {
+            id: 'CLUBE-ANUAL',
+            name: content.clubetitle || 'Clube Professora Protagonista',
+            value: Number(content.clubeprice),
+            description: content.clubedescription || 'Assinatura anual de acesso ilimitado a todos os materiais.'
+          },
+          type: 'SUBSCRIPTION',
+          lead_id: leadData?.id,
+          callback: {
+            successUrl: `${window.location.origin}/#thank-you`
+          }
+        };
+
         const response = await fetch(content.asaas_backend_url, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            token: apiKey,
-            type: 'SUBSCRIPTION',
-            environment: content.asaas_use_sandbox ? 'sandbox' : 'production',
-            customer: {
-              name: customerData.name,
-              email: customerData.email,
-              cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
-              mobilePhone: customerData.phone.replace(/\D/g, ''),
-              postalCode: customerData.postalCode.replace(/\D/g, ''),
-              address: customerData.address,
-              addressNumber: customerData.addressNumber,
-              province: customerData.province,
-              complement: customerData.complement,
-              city: customerData.city
-            },
-            subscription: {
-              billingType: "CREDIT_CARD",
-              value: Number(content.clubeprice),
-              cycle: "YEARLY",
-              description: content.clubedescription || "Assinatura Clube Protagonista"
-            },
-            callback: { 
-              successUrl: `${window.location.origin}/#thank-you`,
-              autoRedirect: true
-            }
-          })
+          body: JSON.stringify(payload)
         });
 
         const rawData = await response.json().catch(() => ({}));
@@ -132,24 +153,20 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
         } else {
-          if (rawData.message === "Workflow was started") {
-            throw new Error('O n8n respondeu que o fluxo começou, mas não esperou o link do Asaas. Mude o Webhook para "Respond: When last node finishes".');
-          }
-          throw new Error('Link de pagamento não encontrado na resposta. Por favor, finalize pelo WhatsApp.');
+          throw new Error('Link de pagamento não retornado pelo servidor. Finalize pelo WhatsApp.');
         }
-      } catch (err: any) {
-        setClubError({ message: err.message, type: 'api' });
-      } finally {
-        setPayingClub(false);
+      } else {
+        redirectToWhatsApp();
       }
-      return;
+    } catch (err: any) {
+      setClubError({ message: err.message, type: 'api' });
+    } finally {
+      setPayingClub(false);
     }
-    
-    redirectToWhatsApp();
   };
 
   const redirectToWhatsApp = () => {
-    const msg = `Olá Professora Sande! Gostaria de assinar o *Clube Protagonista* (R$ ${Number(content.clubeprice).toFixed(2)}/ano) e ter acesso a todos os materiais. Nome: ${customerData.name || 'Pendente'}`;
+    const msg = `Olá! Quero assinar o *Clube Protagonista*. Nome: ${customerData.name || 'Pendente'}`;
     window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -164,6 +181,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
 
   return (
     <div className="bg-brand-cream/30 pb-20 md:pb-32">
+      {/* Banner Clube */}
       <section className="bg-brand-purple py-12 md:py-24 px-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 hidden md:block"></div>
         <div className="max-w-6xl mx-auto bg-white rounded-[2rem] md:rounded-[4rem] shadow-3xl overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/20">
@@ -193,7 +211,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         </div>
       </section>
 
-      {/* MODAL DE FATURAMENTO DO CLUBE */}
+      {/* Modal Faturamento Clube */}
       {showClubBillingForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
           <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
@@ -205,6 +223,12 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
             </div>
             
             <form onSubmit={handleClubCheckout} className="p-6 md:p-10 lg:p-12 overflow-y-auto custom-scrollbar flex-grow">
+              {clubError && (
+                <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl font-bold flex items-center gap-3">
+                  <AlertCircle /> {clubError.message}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Nome Completo" icon={<User size={18}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
@@ -236,6 +260,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         </div>
       )}
 
+      {/* Vitrine de Materiais */}
       <section className="max-w-7xl mx-auto px-4 mt-12 md:mt-24">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 mb-8 md:mb-16 text-center md:text-left">
           <div>

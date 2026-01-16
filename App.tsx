@@ -50,6 +50,44 @@ const App: React.FC = () => {
             const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
             if (favicon) favicon.href = data.faviconurl;
           }
+
+          // Injetar Scripts de Tracking se existirem
+          if (data.google_analytics_id) {
+            const gaScript = document.createElement('script');
+            gaScript.async = true;
+            gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${data.google_analytics_id}`;
+            document.head.appendChild(gaScript);
+
+            const gaConfig = document.createElement('script');
+            gaConfig.innerHTML = `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${data.google_analytics_id}');
+            `;
+            document.head.appendChild(gaConfig);
+          }
+
+          if (data.meta_pixel_id) {
+            const pixelScript = document.createElement('script');
+            pixelScript.innerHTML = `
+              !function(f,b,e,v,n,t,s)
+              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+              n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];
+              s.parentNode.insertBefore(t,s)}(window, document,'script',
+              'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '${data.meta_pixel_id}');
+              fbq('track', 'PageView');
+            `;
+            document.head.appendChild(pixelScript);
+
+            const pixelNoScript = document.createElement('noscript');
+            pixelNoScript.innerHTML = `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${data.meta_pixel_id}&ev=PageView&noscript=1" />`;
+            document.body.appendChild(pixelNoScript);
+          }
         }
       } catch (err) {
         console.error('Erro ao carregar configurações:', err);
