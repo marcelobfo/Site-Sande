@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'https://esm.sh/react@19.0.0';
+import { MessageCircle } from 'https://esm.sh/lucide-react@0.473.0';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Products } from './pages/Products';
@@ -16,7 +17,6 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
 import { View, SiteContent } from './types';
-import { MessageCircle } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 const DEFAULT_CONTENT: SiteContent = {
@@ -33,21 +33,7 @@ const DEFAULT_CONTENT: SiteContent = {
 const formatSupabaseError = (error: any): string => {
   if (!error) return 'Erro desconhecido';
   if (typeof error === 'string') return error;
-  
-  const message = error.message || error.msg || '';
-  const details = error.details || '';
-  const hint = error.hint || '';
-  const code = error.code || '';
-
-  if (message || details || hint) {
-    return `MENSAGEM: ${message}\nDETALHES: ${details}\nDICA: ${hint}\nCÓDIGO: ${code}`;
-  }
-
-  try {
-    return JSON.stringify(error, null, 2);
-  } catch (e) {
-    return String(error);
-  }
+  return error.message || JSON.stringify(error);
 };
 
 const App: React.FC = () => {
@@ -99,50 +85,15 @@ const App: React.FC = () => {
 
   const handleUpdateContent = async (newContent: SiteContent) => {
     setContent(newContent);
-    
-    // Lista de campos que costumam faltar em tabelas antigas
-    const extendedFields = [
-      'asaas_production_key', 
-      'asaas_sandbox_key', 
-      'asaas_use_sandbox', 
-      'asaas_backend_url',
-      'aboutfeaturedimage1',
-      'aboutfeaturedimage2',
-      'aboutfeaturedimage3'
-    ];
-    
     const { created_at, updated_at, ...allFields } = newContent as any;
     
-    const tryUpsert = async (payload: any) => {
-      return await supabase
+    const { error } = await supabase
         .from('site_content')
-        .upsert({ ...payload, id: 1 }, { onConflict: 'id' });
-    };
-
-    // Primeira tentativa: Tenta salvar tudo
-    let { error } = await tryUpsert(allFields);
-    
-    // Segunda tentativa: Se houver erro de coluna inexistente (PGRST204)
-    if (error && (error.code === 'PGRST204' || error.message?.includes('column'))) {
-      console.warn('Detectado incompatibilidade de schema. Limpando campos estendidos e tentando salvar o essencial...');
-      
-      const basicFields = { ...allFields };
-      extendedFields.forEach(field => delete basicFields[field]);
-      
-      const { error: secondError } = await tryUpsert(basicFields);
-      error = secondError;
-      
-      if (!error) {
-        alert("⚠️ ATENÇÃO: Seus dados básicos foram salvos, mas as configurações avançadas (Asaas/Galeria) falharam porque as colunas não existem no seu banco de dados.\n\nPor favor, vá em ADMIN -> PAGAMENTOS e siga as instruções de 'Database Sync' para atualizar sua tabela.");
-        return;
-      }
-    }
+        .upsert({ ...allFields, id: 1 }, { onConflict: 'id' });
     
     if (error) {
-      const displayMsg = formatSupabaseError(error);
-      console.error('Erro Supabase Crítico:', displayMsg);
-      alert(`ERRO AO SALVAR NO BANCO:\n\n${displayMsg}\n\nSe o erro persistir, verifique se sua tabela 'site_content' possui as colunas necessárias.`);
-      throw new Error(displayMsg);
+      alert(`Erro ao salvar: ${error.message}`);
+      throw error;
     }
   };
 

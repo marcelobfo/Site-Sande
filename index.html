@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Professora Protagonista | Sande Almeida</title>
     
-    <!-- Tailwind Play CDN (Otimizado para Runtime) -->
+    <!-- Tailwind Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -19,8 +19,8 @@
             if (root && root.innerHTML === "") {
                 root.innerHTML = `
                     <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #FFFBEB; min-height: 100vh;">
-                        <h2 style="color: #7E22CE;">Ops! Tivemos um problema no carregamento.</h2>
-                        <p style="color: #6B7280;">Isso pode ser cache do navegador ou uma atualização no servidor.</p>
+                        <h2 style="color: #7E22CE;">Erro de Carregamento</h2>
+                        <p style="color: #6B7280;">Não foi possível iniciar a aplicação. Verifique sua conexão ou tente recarregar.</p>
                         <button onclick="location.reload()" style="background: #7E22CE; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold; margin-top: 20px;">
                             Recarregar Página
                         </button>
@@ -60,24 +60,24 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
-    <!-- Importmap robusto e unificado para Produção -->
+    <!-- Importmap Estrito para Produção (React 19.0.0 fix) -->
     <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react/": "https://esm.sh/react@19.0.0/",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.473.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react/": "https://esm.sh/react@19.0.0/",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+        "lucide-react": "https://esm.sh/lucide-react@0.473.0",
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7"
+      }
+    }
+    </script>
 </head>
 <body>
     <div id="root"></div>
-    <!-- Ponto de entrada da aplicação (CRÍTICO para evitar tela branca) -->
+    <!-- Ponto de entrada carregado como módulo ESM -->
     <script type="module" src="index.tsx"></script>
 </body>
 </html>
