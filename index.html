@@ -8,6 +8,21 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
+        // Captura erros críticos de carregamento para evitar tela branca sem diagnóstico
+        window.onerror = function(msg, url, line, col, error) {
+            console.error("Erro Crítico detectado:", msg, "em", url, ":", line);
+            const root = document.getElementById('root');
+            if (root && root.innerHTML === "") {
+                root.innerHTML = `<div style="padding: 20px; color: red; font-family: sans-serif;">
+                    <h2>Erro de Carregamento</h2>
+                    <p>${msg}</p>
+                    <small>${url} (linha ${line})</small>
+                    <br><br>
+                    <button onclick="location.reload()" style="padding: 10px; cursor: pointer;">Recarregar Página</button>
+                </div>`;
+            }
+        };
+
         tailwind.config = {
             theme: {
                 extend: {
@@ -46,8 +61,10 @@
     "react": "https://esm.sh/react@19.0.0",
     "react/": "https://esm.sh/react@19.0.0/",
     "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
-    "lucide-react": "https://esm.sh/lucide-react@0.473.0"
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.473.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
 }
 </script>

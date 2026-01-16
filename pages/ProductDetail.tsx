@@ -92,7 +92,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     if (!product) return;
     setErrorState({ message: '', type: null });
 
-    // Se houver uma URL de backend configurada, enviamos os dados capturados para lá
     if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
       const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
       
@@ -144,20 +143,16 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           window.location.href = checkoutUrl;
           setShowBillingForm(false);
         } else {
-          // Fallback para link fixo se o n8n retornar um objeto vazio ou sucesso genérico
           if (product.checkout_url) {
             window.location.href = product.checkout_url;
             return;
           }
-
           if (Object.keys(rawData).length === 0 || rawData.message === "Workflow was started") {
-            throw new Error('CONFIGURAÇÃO N8N: O fluxo não retornou o link. Verifique se o Webhook está como "Respond: When last node finishes".');
+            throw new Error('CONFIGURAÇÃO N8N: O fluxo não retornou o link.');
           }
-          
-          throw new Error('Não encontramos o link de pagamento na resposta do servidor.');
+          throw new Error('Não encontramos o link de pagamento.');
         }
       } catch (err: any) {
-        console.error('Falha no checkout:', err);
         setErrorState({ message: err.message, type: 'api' });
       } finally {
         setPaying(false);
@@ -165,7 +160,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
       return;
     }
 
-    // Se não houver backend, usamos o link direto (se existir) ou WhatsApp
     if (product.checkout_url) {
       window.open(product.checkout_url, '_blank');
       return;
@@ -186,78 +180,78 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-cream/30">
-      <Loader2 className="animate-spin text-brand-purple mb-4" size={64} />
-      <p className="font-black text-brand-dark uppercase tracking-widest text-sm">Carregando...</p>
+      <Loader2 className="animate-spin text-brand-purple mb-4" size={48} />
+      <p className="font-black text-brand-dark uppercase tracking-widest text-xs">Carregando...</p>
     </div>
   );
 
   if (!product) return null;
 
   return (
-    <div className="bg-brand-cream/30 pb-32 pt-12 min-h-screen">
+    <div className="bg-brand-cream/30 pb-20 md:pb-32 pt-8 md:pt-12 min-h-screen">
       <div className="max-w-7xl mx-auto px-4">
         <button 
           onClick={() => onNavigate('products')} 
-          className="group flex items-center gap-2 text-brand-purple font-black mb-12 hover:translate-x-[-8px] transition-all"
+          className="group flex items-center gap-2 text-brand-purple font-black mb-8 md:mb-12 hover:translate-x-[-8px] transition-all text-sm"
         >
-          <ArrowLeft size={20} className="group-hover:scale-125 transition-transform" /> 
-          VOLTAR PARA A VITRINE
+          <ArrowLeft size={18} className="group-hover:scale-125 transition-transform" /> 
+          VOLTAR
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-start">
-          <div className="space-y-8 sticky top-32">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 lg:gap-24 items-start">
+          <div className="space-y-6 md:space-y-8 lg:sticky lg:top-32">
             <div className="relative group">
-              <div className="absolute -inset-4 bg-brand-purple/10 rounded-[4.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+              <div className="absolute -inset-4 bg-brand-purple/10 rounded-[2.5rem] md:rounded-[4.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
               <img 
                 src={product.image_url} 
-                className="relative w-full rounded-[4rem] shadow-3xl border-8 border-white object-cover aspect-square transition-transform duration-500 group-hover:scale-[1.01]" 
+                className="relative w-full rounded-[2.5rem] md:rounded-[4rem] shadow-3xl border-4 md:border-8 border-white object-cover aspect-square transition-transform duration-500" 
                 alt={product.title} 
               />
-              <div className="absolute -bottom-8 -right-8 bg-brand-orange text-white p-8 rounded-[2.5rem] shadow-3xl rotate-6 animate-bounce">
-                <Zap size={40} fill="currentColor" />
+              <div className="absolute -bottom-4 -right-4 md:-bottom-8 md:-right-8 bg-brand-orange text-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-3xl rotate-6 animate-bounce">
+                <Zap size={32} className="md:size-[40px]" fill="currentColor" />
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col">
-            <div className="bg-brand-purple/10 text-brand-purple px-5 py-2 rounded-full inline-block w-fit text-xs font-black uppercase tracking-widest mb-6 shadow-sm">
+          <div className="flex flex-col text-center lg:text-left">
+            <div className="bg-brand-purple/10 text-brand-purple px-4 py-1.5 md:px-5 md:py-2 rounded-full inline-block w-fit text-[10px] font-black uppercase tracking-widest mb-4 md:mb-6 shadow-sm mx-auto lg:mx-0">
               {product.category}
             </div>
             
-            <h1 className="text-4xl lg:text-7xl font-black text-brand-dark mb-8 tracking-tighter leading-[0.9] uppercase">
+            <h1 className="text-3xl md:text-5xl lg:text-7xl font-black text-brand-dark mb-6 md:mb-8 tracking-tighter leading-tight lg:leading-[0.9] uppercase">
               {product.title}
             </h1>
             
-            <div className="h-2 w-24 bg-brand-orange rounded-full mb-10"></div>
+            <div className="h-1.5 w-16 md:w-24 bg-brand-orange rounded-full mb-8 md:mb-10 mx-auto lg:mx-0"></div>
             
-            <p className="text-xl text-gray-500 font-medium mb-12 leading-relaxed">
+            <p className="text-lg md:text-xl text-gray-500 font-medium mb-10 md:mb-12 leading-relaxed">
               {product.description}
             </p>
 
-            <div className="bg-white p-10 lg:p-14 rounded-[4rem] shadow-3xl border border-brand-lilac/10 relative overflow-hidden group/card">
+            <div className="bg-white p-8 md:p-10 lg:p-14 rounded-[2.5rem] md:rounded-[4rem] shadow-3xl border border-brand-lilac/10 relative overflow-hidden">
               <div className="relative z-10">
-                <div className="mb-10">
+                <div className="mb-8 md:mb-10">
                   {product.old_price && (
-                    <p className="text-xl text-gray-300 line-through mb-1 font-bold">De R$ {Number(product.old_price).toFixed(2)}</p>
+                    <p className="text-lg md:text-xl text-gray-300 line-through mb-1 font-bold">De R$ {Number(product.old_price).toFixed(2)}</p>
                   )}
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-black text-brand-purple uppercase">Apenas</span>
-                    <p className="text-6xl lg:text-7xl font-black text-brand-purple tracking-tighter">
+                  <div className="flex items-baseline justify-center lg:justify-start gap-2">
+                    <span className="text-[10px] md:text-sm font-black text-brand-purple uppercase">Apenas</span>
+                    <p className="text-5xl md:text-6xl lg:text-7xl font-black text-brand-purple tracking-tighter">
                       R$ {Number(product.price).toFixed(2)}
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                   <button 
                     onClick={() => setShowBillingForm(true)}
-                    className="group/btn w-full bg-brand-orange text-white py-8 rounded-[2.5rem] font-black text-2xl lg:text-3xl shadow-2xl hover:bg-brand-dark transition-all active:scale-95 flex items-center justify-center gap-4"
+                    className="w-full bg-brand-orange text-white py-6 md:py-8 rounded-[1.5rem] md:rounded-[2.5rem] font-black text-xl md:text-2xl lg:text-3xl shadow-2xl hover:bg-brand-dark transition-all active:scale-95 flex items-center justify-center gap-4"
                   >
-                    <ShoppingCart size={32} /> 
-                    ADQUIRIR AGORA
+                    <ShoppingCart size={28} className="md:size-[32px]" /> 
+                    QUERO AGORA
                   </button>
-                  <p className="text-gray-400 text-[11px] font-bold text-center flex items-center justify-center gap-2">
-                    <ShieldCheck size={16} className="text-green-500" /> Transação Monitorada e Segura
+                  <p className="text-gray-400 text-[9px] md:text-[11px] font-bold text-center flex items-center justify-center gap-2 uppercase tracking-widest">
+                    <ShieldCheck size={14} className="text-green-500" /> Transação Segura
                   </p>
                 </div>
               </div>
@@ -268,39 +262,23 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
       {showBillingForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-brand-dark/80 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
-            <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">Dados para o Material</h3>
-              <button onClick={() => setShowBillingForm(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all">
+          <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
+            <div className="p-6 md:p-10 border-b flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-xl md:text-2xl font-black text-brand-dark uppercase tracking-tighter">Dados de Cobrança</h3>
+              <button onClick={() => setShowBillingForm(false)} className="p-2 md:p-3 hover:bg-gray-100 rounded-2xl transition-all">
                 <X size={24} className="text-gray-300" />
               </button>
             </div>
             
-            <form onSubmit={handleCheckout} className="p-10 lg:p-12 overflow-y-auto custom-scrollbar flex-grow">
-              {errorState.message && (
-                <div className="mb-8 p-6 bg-red-50 border-2 border-red-100 rounded-3xl animate-in slide-in-from-top">
-                  <div className="flex items-start gap-4 text-red-600 font-bold mb-4">
-                    <AlertCircle size={24} className="shrink-0" />
-                    <span className="text-sm leading-tight">{errorState.message}</span>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={redirectToWhatsApp}
-                    className="w-full bg-green-500 text-white py-5 rounded-2xl font-black text-lg uppercase flex items-center justify-center gap-3"
-                  >
-                    <MessageCircle size={24} /> FINALIZAR NO WHATSAPP
-                  </button>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <form onSubmit={handleCheckout} className="p-6 md:p-10 lg:p-12 overflow-y-auto custom-scrollbar flex-grow">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Nome Completo" icon={<User size={18}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
                 </div>
                 <BillingInput label="E-mail" icon={<Mail size={18}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
-                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
-                <BillingInput label="WhatsApp (DDD + Número)" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
-                <BillingInput label="CEP (Só números)" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
+                <BillingInput label="WhatsApp" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
+                <BillingInput label="CEP" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Endereço" icon={<MapPin size={18}/>} name="address" value={customerData.address} onChange={handleInputChange} required />
                 </div>
@@ -310,13 +288,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
                 <BillingInput label="Complemento" name="complement" value={customerData.complement} onChange={handleInputChange} />
               </div>
 
-              <div className="mt-12">
+              <div className="mt-8 md:mt-12">
                 <button 
                   type="submit"
                   disabled={paying}
-                  className="w-full bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  className="w-full bg-brand-purple text-white py-5 md:py-6 rounded-2xl md:rounded-3xl font-black text-lg md:text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
-                  {paying ? <Loader2 className="animate-spin" /> : <><ShoppingCart size={24}/> GERAR PAGAMENTO</>}
+                  {paying ? <Loader2 className="animate-spin" /> : <><ShoppingCart size={24}/> FINALIZAR PEDIDO</>}
                 </button>
               </div>
             </form>
@@ -335,13 +313,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
 const BillingInput = ({ label, icon, required, ...props }: any) => (
   <div className="w-full">
-    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">{label} {required && '*'}</label>
+    <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 md:mb-2 block">{label} {required && '*'}</label>
     <div className="relative group">
-      {icon && <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-brand-purple transition-colors">{icon}</div>}
+      {icon && <div className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-brand-purple transition-colors">{icon}</div>}
       <input 
         required={required}
         {...props}
-        className={`w-full ${icon ? 'pl-14' : 'px-6'} py-5 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-2xl font-bold text-brand-dark transition-all outline-none shadow-inner`} 
+        className={`w-full ${icon ? 'pl-12 md:pl-14' : 'px-4 md:px-6'} py-4 md:py-5 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-xl md:rounded-2xl font-bold text-sm md:text-base text-brand-dark transition-all outline-none shadow-inner`} 
       />
     </div>
   </div>
