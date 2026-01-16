@@ -1,15 +1,17 @@
 
 import React, { useState } from 'react';
 import { Send, Phone, Mail, Clock, Instagram, MessageCircle, Heart, CheckCircle2, Loader2, MapPin } from 'lucide-react';
-import { SiteContent } from '../types';
+import { SiteContent, View } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface ContactProps {
   content: SiteContent;
+  onNavigate?: (view: View) => void;
 }
 
-export const Contact: React.FC<ContactProps> = ({ content }) => {
-  const [submitted, setSubmitted] = useState(false);
+const WEBHOOK_URL = 'https://atendimento-creditar-n8n.stpanz.easypanel.host/webhook/briefing';
+
+export const Contact: React.FC<ContactProps> = ({ content, onNavigate }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -24,7 +26,8 @@ export const Contact: React.FC<ContactProps> = ({ content }) => {
     setLoading(true);
     
     try {
-      const { error } = await supabase
+      // 1. Salva no Supabase (CRM Interno)
+      const { error: supabaseError } = await supabase
         .from('leads')
         .insert([{ 
           ...formData, 
@@ -32,9 +35,32 @@ export const Contact: React.FC<ContactProps> = ({ content }) => {
           created_at: new Date().toISOString() 
         }]);
 
-      if (error) throw error;
-      setSubmitted(true);
-      setFormData({ name: '', email: '', whatsapp: '', subject: '', message: '' });
+      if (supabaseError) throw supabaseError;
+
+      // 2. Envia para o Webhook (Automação n8n)
+      try {
+        await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            origin: 'Formulário de Contato',
+            thank_you_url: `${window.location.origin}/#thank-you`,
+            description_context: `Contato via Site: ${formData.subject} - Mensagem: ${formData.message}`,
+            sent_at: new Date().toISOString()
+          })
+        });
+      } catch (webhookErr) {
+        console.warn('Falha ao enviar para o webhook, mas lead salvo no DB:', webhookErr);
+      }
+      
+      // 3. Redirecionamento para Página de Obrigado
+      if (onNavigate) {
+        onNavigate('thank-you');
+      } else {
+        alert("Mensagem enviada com sucesso!");
+        setFormData({ name: '', email: '', whatsapp: '', subject: '', message: '' });
+      }
     } catch (err) {
       console.error('Error submitting lead:', err);
       alert('Erro ao enviar mensagem. Por favor, tente novamente ou use o WhatsApp.');
@@ -59,62 +85,46 @@ export const Contact: React.FC<ContactProps> = ({ content }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Formulário */}
           <div className="bg-white p-10 lg:p-20 rounded-[4rem] shadow-3xl border border-brand-lilac/20 relative">
-            {submitted ? (
-              <div className="text-center py-20 animate-in fade-in zoom-in duration-500">
-                <div className="bg-green-100 text-green-500 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-10 shadow-lg">
-                  <CheckCircle2 size={56} />
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <h3 className="text-2xl font-black text-brand-dark mb-8 flex items-center gap-3">
+                <Send className="text-brand-orange" /> Envie um E-mail
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Seu Nome Completo</label>
+                  <input required name="name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="contact-input" placeholder="Ex: Maria Silva" />
                 </div>
-                <h2 className="text-4xl font-black text-brand-dark mb-4">Mensagem Enviada!</h2>
-                <p className="text-gray-500 font-bold text-lg mb-10">Obrigado por entrar em contato. Responderemos o mais breve possível.</p>
-                <button 
-                  onClick={() => setSubmitted(false)}
-                  className="bg-brand-purple text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:scale-105 transition-all"
-                >
-                  ENVIAR OUTRA MENSAGEM
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <h3 className="text-2xl font-black text-brand-dark mb-8 flex items-center gap-3">
-                  <Send className="text-brand-orange" /> Envie um E-mail
-                </h3>
                 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Seu Nome Completo</label>
-                    <input required name="name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="contact-input" placeholder="Ex: Maria Silva" />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">E-mail</label>
+                    <input required type="email" name="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="contact-input" placeholder="exemplo@email.com" />
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">E-mail</label>
-                      <input required type="email" name="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="contact-input" placeholder="exemplo@email.com" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">WhatsApp</label>
-                      <input name="whatsapp" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} className="contact-input" placeholder="(00) 00000-0000" />
-                    </div>
-                  </div>
-
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Assunto</label>
-                    <input required name="subject" value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} className="contact-input" placeholder="Ex: Dúvida sobre o Clube" />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Sua Mensagem</label>
-                    <textarea required rows={5} name="message" value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} className="contact-input resize-none" placeholder="Conte-nos como podemos te ajudar..."></textarea>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">WhatsApp</label>
+                    <input name="whatsapp" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} className="contact-input" placeholder="(00) 00000-0000" />
                   </div>
                 </div>
 
-                <button 
-                  disabled={loading}
-                  className="w-full bg-brand-orange text-white py-6 rounded-3xl font-black text-xl shadow-2xl hover:bg-brand-dark hover:scale-[1.02] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                >
-                  {loading ? <Loader2 className="animate-spin" /> : <><Send size={24} /> ENVIAR AGORA</>}
-                </button>
-              </form>
-            )}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Assunto</label>
+                  <input required name="subject" value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} className="contact-input" placeholder="Ex: Dúvida sobre o Clube" />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Sua Mensagem</label>
+                  <textarea required rows={5} name="message" value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} className="contact-input resize-none" placeholder="Conte-nos como podemos te ajudar..."></textarea>
+                </div>
+              </div>
+
+              <button 
+                disabled={loading}
+                className="w-full bg-brand-orange text-white py-6 rounded-3xl font-black text-xl shadow-2xl hover:bg-brand-dark hover:scale-[1.02] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <><Send size={24} /> ENVIAR AGORA</>}
+              </button>
+            </form>
           </div>
 
           {/* Info Side */}

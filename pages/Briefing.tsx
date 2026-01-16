@@ -39,7 +39,9 @@ export const Briefing: React.FC<BriefingProps> = ({ onNavigate }) => {
         body: JSON.stringify({
           ...formData,
           sent_at: new Date().toISOString(),
-          origin: 'Site Institucional - Briefing'
+          origin: 'Site Institucional - Briefing',
+          thank_you_url: `${window.location.origin}/#thank-you`,
+          description_context: `Solicitação de Briefing para site institucional: ${formData.objetivo}`
         })
       });
 

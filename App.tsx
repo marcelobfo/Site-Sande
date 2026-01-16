@@ -141,7 +141,7 @@ const App: React.FC = () => {
       case 'product-detail': return <ProductDetail productId={selectedId} onNavigate={navigate} content={content} />;
       case 'blog': return <Blog onNavigate={navigate} />;
       case 'blog-post': return <BlogPostView postId={selectedId} onNavigate={navigate} />;
-      case 'contact': return <Contact content={content} />;
+      case 'contact': return <Contact content={content} onNavigate={navigate} />;
       case 'faq': return <FAQ onNavigate={navigate} />;
       case 'policies': return <Policies onNavigate={navigate} />;
       case 'admin': return <Admin content={content} onUpdate={handleUpdateContent} />;
