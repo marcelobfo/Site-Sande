@@ -7,9 +7,10 @@ interface ProductDetailProps {
   productId: string | null;
   onNavigate: (view: View) => void;
   content: SiteContent;
+  notify?: (type: any, title: string, message: string) => void;
 }
 
-export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavigate, content }) => {
+export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavigate, content, notify }) => {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -93,10 +94,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     setPaying(true);
 
     try {
-      // 1. Upsert no CRM (Supabase)
+      // 1. CAPTURA DE LEAD (Supabase) - Inserção explícita para o Kanban
+      // Usamos insert em vez de upsert para garantir a captura mesmo que o email já exista
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
-        .upsert([{
+        .insert([{
           name: customerData.name,
           email: customerData.email,
           whatsapp: customerData.phone,
@@ -114,13 +116,19 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           city: customerData.city,
           complement: customerData.complement,
           created_at: new Date().toISOString()
-        }], { onConflict: 'email' })
+        }])
         .select()
         .single();
 
-      if (leadError) throw new Error(`Falha ao registrar interesse no banco: ${leadError.message}`);
+      if (leadError) {
+        console.error("Erro ao salvar lead no Supabase:", leadError);
+        // Se o erro for de coluna, avisamos o admin
+        if (leadError.message.includes('column')) {
+          throw new Error("Erro de Banco de Dados: Coluna 'whatsapp' ou campos de endereço ausentes. Por favor, execute o SQL de atualização no Supabase.");
+        }
+      }
 
-      // 2. Disparar Webhook para o n8n
+      // 2. DISPARAR WEBHOOK (Asaas/n8n)
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
         const isSandbox = !!content.asaas_use_sandbox;
         const apiKey = isSandbox ? content.asaas_sandbox_key : content.asaas_production_key;
@@ -133,7 +141,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         const payload = {
           token: apiKey,
           environment: isSandbox ? 'sandbox' : 'production',
-          asaas_base_url: asaasBaseUrl, // Enviando explicitamente a URL do ambiente
+          asaas_base_url: asaasBaseUrl,
           customer: {
             name: customerData.name,
             email: customerData.email,
@@ -177,14 +185,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         const checkoutUrl = findUrlInResponse(rawData);
         
         if (checkoutUrl) {
-          if (rawData.id) {
+          if (rawData.id && leadData?.id) {
              await supabase.from('leads').update({ payment_id: rawData.id }).eq('id', leadData.id);
           }
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('Link não encontrado. Finalize pelo WhatsApp.');
+          throw new Error('Link de pagamento não retornado pelo servidor.');
         }
       } else {
+        // Fallback para Link Direto se não houver automação
         if (product.checkout_url) {
           window.open(product.checkout_url, '_blank');
         } else {
@@ -194,6 +203,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     } catch (err: any) {
       console.error('Checkout Error:', err);
       setErrorState({ message: err.message, type: 'api' });
+      if (notify) notify('error', 'Erro no Checkout', err.message);
     } finally {
       setPaying(false);
     }

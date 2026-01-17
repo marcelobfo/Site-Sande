@@ -6,9 +6,10 @@ import { supabase } from '../lib/supabase';
 interface ProductsProps {
   onNavigate: (view: View, id?: string) => void;
   content: SiteContent;
+  notify?: (type: any, title: string, message: string) => void;
 }
 
-export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
+export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify }) => {
   const [activeTab, setActiveTab] = useState('Todos');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -88,9 +89,10 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
     setPayingClub(true);
     
     try {
+      // 1. CAPTURA DE LEAD (Supabase)
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
-        .upsert([{
+        .insert([{
           name: customerData.name,
           email: customerData.email,
           whatsapp: customerData.phone,
@@ -108,11 +110,16 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
           city: customerData.city,
           complement: customerData.complement,
           created_at: new Date().toISOString()
-        }], { onConflict: 'email' })
+        }])
         .select()
         .single();
 
-      if (leadError) throw new Error(`Erro ao salvar no CRM: ${leadError.message}`);
+      if (leadError) {
+        console.error("Erro ao salvar lead do clube:", leadError);
+        if (leadError.message.includes('column')) {
+           throw new Error("Erro de Banco de Dados: Coluna 'whatsapp' ou campos de endereço ausentes na tabela 'leads'. Execute o SQL de atualização.");
+        }
+      }
 
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
         const isSandbox = !!content.asaas_use_sandbox;
@@ -124,7 +131,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         const payload = {
           token: apiKey,
           environment: isSandbox ? 'sandbox' : 'production',
-          asaas_base_url: asaasBaseUrl, // URL explícita para o backend
+          asaas_base_url: asaasBaseUrl,
           customer: {
             name: customerData.name,
             email: customerData.email,
@@ -164,15 +171,19 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
 
         const checkoutUrl = findUrlInResponse(rawData);
         if (checkoutUrl) {
+          if (rawData.id && leadData?.id) {
+             await supabase.from('leads').update({ payment_id: rawData.id }).eq('id', leadData.id);
+          }
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('Link não gerado. Tente via WhatsApp.');
+          throw new Error('Link de pagamento não gerado.');
         }
       } else {
         redirectToWhatsApp();
       }
     } catch (err: any) {
       setClubError({ message: err.message, type: 'api' });
+      if (notify) notify('error', 'Erro no Clube', err.message);
     } finally {
       setPayingClub(false);
     }

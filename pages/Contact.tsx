@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Send, Phone, Mail, Clock, Instagram, MessageCircle, Heart, CheckCircle2, Loader2, MapPin } from 'lucide-react';
 import { SiteContent, View } from '../types';
@@ -26,11 +25,15 @@ export const Contact: React.FC<ContactProps> = ({ content, onNavigate }) => {
     setLoading(true);
     
     try {
-      // 1. Salva no Supabase (CRM Interno)
+      // 1. Salva no Supabase (CRM Interno) - Explicitamente mapeando campos
       const { error: supabaseError } = await supabase
         .from('leads')
         .insert([{ 
-          ...formData, 
+          name: formData.name,
+          email: formData.email,
+          whatsapp: formData.whatsapp,
+          subject: formData.subject,
+          message: formData.message,
           status: 'Novo', 
           created_at: new Date().toISOString() 
         }]);
@@ -63,7 +66,7 @@ export const Contact: React.FC<ContactProps> = ({ content, onNavigate }) => {
       }
     } catch (err) {
       console.error('Error submitting lead:', err);
-      alert('Erro ao enviar mensagem. Por favor, tente novamente ou use o WhatsApp.');
+      alert('Erro ao enviar mensagem. Certifique-se de que a coluna "whatsapp" existe na tabela "leads" do seu Supabase.');
     } finally {
       setLoading(false);
     }
