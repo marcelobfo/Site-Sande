@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, User, FileText, Phone, MapPin, Mail, ArrowRight, AlertCircle, MessageCircle } from 'lucide-react';
 import { Product, View, SiteContent, AsaasCustomerData } from '../types';
@@ -94,12 +93,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     setPaying(true);
 
     try {
-      // 1. Upsert no CRM (Supabase): Tenta atualizar por email, se não existir cria novo
+      // 1. Upsert no CRM (Supabase)
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .upsert([{
           name: customerData.name,
-          email: customerData.email, // Chave de busca
+          email: customerData.email,
           whatsapp: customerData.phone,
           subject: `Checkout: ${product.title}`,
           message: `Iniciou checkout para o produto: ${product.title}`,
@@ -123,15 +122,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
       // 2. Disparar Webhook para o n8n
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
-        const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+        const isSandbox = !!content.asaas_use_sandbox;
+        const apiKey = isSandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+        const asaasBaseUrl = isSandbox ? 'https://api-sandbox.asaas.com/' : 'https://api.asaas.com/';
         
         if (!apiKey) {
-          throw new Error("Configuração incompleta: API Key do Asaas não encontrada.");
+          throw new Error(`Configuração incompleta: API Key do Asaas para ${isSandbox ? 'Sandbox' : 'Produção'} não encontrada.`);
         }
 
         const payload = {
           token: apiKey,
-          environment: content.asaas_use_sandbox ? 'sandbox' : 'production',
+          environment: isSandbox ? 'sandbox' : 'production',
+          asaas_base_url: asaasBaseUrl, // Enviando explicitamente a URL do ambiente
           customer: {
             name: customerData.name,
             email: customerData.email,
@@ -175,7 +177,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         const checkoutUrl = findUrlInResponse(rawData);
         
         if (checkoutUrl) {
-          // Atualiza o card com o ID do pagamento se o Asaas retornou algo
           if (rawData.id) {
              await supabase.from('leads').update({ payment_id: rawData.id }).eq('id', leadData.id);
           }

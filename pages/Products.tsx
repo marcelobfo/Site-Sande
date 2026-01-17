@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown } from 'lucide-react';
 import { View, SiteContent, Product, AsaasCustomerData } from '../types';
@@ -116,12 +115,16 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
       if (leadError) throw new Error(`Erro ao salvar no CRM: ${leadError.message}`);
 
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
-        const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
-        if (!apiKey) throw new Error("API Key não configurada.");
+        const isSandbox = !!content.asaas_use_sandbox;
+        const apiKey = isSandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+        const asaasBaseUrl = isSandbox ? 'https://api-sandbox.asaas.com/' : 'https://api.asaas.com/';
+
+        if (!apiKey) throw new Error(`API Key de ${isSandbox ? 'Sandbox' : 'Produção'} não configurada.`);
 
         const payload = {
           token: apiKey,
-          environment: content.asaas_use_sandbox ? 'sandbox' : 'production',
+          environment: isSandbox ? 'sandbox' : 'production',
+          asaas_base_url: asaasBaseUrl, // URL explícita para o backend
           customer: {
             name: customerData.name,
             email: customerData.email,

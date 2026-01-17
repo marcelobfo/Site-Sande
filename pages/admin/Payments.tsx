@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { CreditCard, Link as LinkIcon, RefreshCcw, ShieldCheck, Terminal, ShieldAlert, Copy } from 'lucide-react';
 import { SiteContent } from '../../types';
@@ -31,16 +30,25 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ form, setForm, not
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-           <div className={`p-8 rounded-[3rem] border-2 transition-all ${!form.asaas_use_sandbox ? 'border-brand-purple bg-brand-purple/5' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
-              <h5 className="font-black text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-brand-purple">
-                <ShieldCheck size={16} /> Produção (API Key)
-              </h5>
+           <div className={`p-8 rounded-[3rem] border-2 transition-all ${!form.asaas_use_sandbox ? 'border-brand-purple bg-brand-purple/5 shadow-xl' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h5 className="font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 text-brand-purple">
+                  <ShieldCheck size={16} /> Produção (API Key)
+                </h5>
+                {!form.asaas_use_sandbox && <span className="bg-green-500 text-white text-[8px] px-2 py-0.5 rounded-full font-black">ATIVO</span>}
+              </div>
+              <p className="text-[10px] text-gray-400 mb-4 font-bold">URL: https://api.asaas.com/</p>
               <AdminInput type="password" placeholder="Chave de Produção..." value={form.asaas_production_key} onChange={(v: string) => setForm({...form, asaas_production_key: v})} />
            </div>
-           <div className={`p-8 rounded-[3rem] border-2 transition-all ${form.asaas_use_sandbox ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
-              <h5 className="font-black text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-brand-orange">
-                <Terminal size={16} /> Sandbox (API Key)
-              </h5>
+
+           <div className={`p-8 rounded-[3rem] border-2 transition-all ${form.asaas_use_sandbox ? 'border-brand-orange bg-brand-orange/5 shadow-xl' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h5 className="font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 text-brand-orange">
+                  <Terminal size={16} /> Sandbox (API Key)
+                </h5>
+                {form.asaas_use_sandbox && <span className="bg-brand-orange text-white text-[8px] px-2 py-0.5 rounded-full font-black">ATIVO</span>}
+              </div>
+              <p className="text-[10px] text-gray-400 mb-4 font-bold">URL: https://api-sandbox.asaas.com/</p>
               <AdminInput type="password" placeholder="Chave de Sandbox..." value={form.asaas_sandbox_key} onChange={(v: string) => setForm({...form, asaas_sandbox_key: v})} />
            </div>
         </div>
