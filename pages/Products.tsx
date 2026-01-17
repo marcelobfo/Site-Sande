@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown } from 'lucide-react';
 import { View, SiteContent, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -11,12 +11,15 @@ interface ProductsProps {
 
 export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
   const [activeTab, setActiveTab] = useState('Todos');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingClub, setPayingClub] = useState(false);
   const [showClubBillingForm, setShowClubBillingForm] = useState(false);
   const [clubError, setClubError] = useState<{ message: string; type: 'api' | 'cors' | 'config' | null } | null>(null);
+  
+  const filterRef = useRef<HTMLDivElement>(null);
 
   const [customerData, setCustomerData] = useState<AsaasCustomerData>({
     name: '',
@@ -42,6 +45,14 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
       setLoading(false);
     };
     fetchProducts();
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const findUrlInResponse = (obj: any): string | null => {
@@ -78,7 +89,6 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
     setPayingClub(true);
     
     try {
-      // 1. CRM Inteligente (Upsert): Junta com card existente se e-mail coincidir
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .upsert([{
@@ -107,7 +117,6 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
 
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
         const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
-
         if (!apiKey) throw new Error("API Key não configurada.");
 
         const payload = {
@@ -148,11 +157,9 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         });
 
         const rawData = await response.json().catch(() => ({}));
-        
         if (!response.ok) throw new Error(rawData.message || `Erro ${response.status}`);
 
         const checkoutUrl = findUrlInResponse(rawData);
-
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
         } else {
@@ -264,57 +271,110 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
       )}
 
       {/* Vitrine de Materiais */}
-      <section className="max-w-7xl mx-auto px-4 mt-12 md:mt-24">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 mb-8 md:mb-16 text-center md:text-left">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-black text-brand-dark uppercase tracking-tighter">Vitrine de Materiais</h2>
-            <p className="text-gray-500 font-medium text-sm md:text-base">Recursos exclusivos para sua sala de aula.</p>
-          </div>
+      <section className="max-w-7xl mx-auto px-4 mt-16 md:mt-24">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-brand-dark uppercase tracking-tighter leading-none mb-4">
+            Vitrine de Materiais
+          </h2>
+          <p className="text-gray-500 font-medium text-base md:text-lg">
+            Recursos exclusivos para sua sala de aula.
+          </p>
+        </div>
+        
+        {/* Filtros Container */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-12 md:mb-20">
           
-          <div className="flex items-center gap-2 md:gap-4 bg-white p-2 rounded-2xl shadow-sm border border-brand-lilac/10 w-full md:w-auto overflow-hidden">
-            <div className="hidden sm:flex border-r border-gray-100 pr-2 gap-1">
-              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-400 hover:text-brand-purple'}`}><LayoutGrid size={20}/></button>
-              <button onClick={() => setViewMode('list')} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-300 hover:text-brand-purple'}`}><List size={20}/></button>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 flex-grow">
+          {/* Mobile Selector Dropdown */}
+          <div className="w-full md:hidden relative" ref={filterRef}>
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className="w-full bg-white px-8 py-5 rounded-[2rem] shadow-xl border border-brand-lilac/10 flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                 <div className="w-2 h-2 bg-brand-purple rounded-full"></div>
+                 <span className="font-black text-sm text-brand-dark uppercase tracking-widest">{activeTab}</span>
+              </div>
+              <ChevronDown size={20} className={`text-brand-purple transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isFilterOpen && (
+              <div className="absolute top-[calc(100%+10px)] left-0 right-0 z-50 bg-white rounded-[2rem] shadow-3xl border border-brand-lilac/5 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="py-4">
+                  {categories.map(cat => (
+                    <button 
+                      key={cat} 
+                      onClick={() => { setActiveTab(cat); setIsFilterOpen(false); }}
+                      className={`w-full px-8 py-4 text-left flex items-center justify-between font-black text-xs uppercase tracking-widest transition-colors ${
+                        activeTab === cat 
+                        ? 'bg-brand-purple/5 text-brand-purple' 
+                        : 'text-gray-400 hover:text-brand-purple hover:bg-gray-50'
+                      }`}
+                    >
+                      {cat}
+                      {activeTab === cat && <Check size={14} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Filter Pills */}
+          <div className="hidden md:block bg-white px-8 py-5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-brand-lilac/10">
+            <div className="flex items-center gap-4">
               {categories.map(cat => (
-                <button key={cat} onClick={() => setActiveTab(cat)} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-xl font-black text-[10px] md:text-sm whitespace-nowrap transition-all ${activeTab === cat ? 'bg-brand-purple text-white' : 'text-gray-400 hover:bg-brand-purple/5 bg-gray-50'}`}>{cat}</button>
+                <button 
+                  key={cat} 
+                  onClick={() => setActiveTab(cat)} 
+                  className={`px-8 py-3.5 rounded-full font-black text-sm whitespace-nowrap transition-all duration-300 ${
+                    activeTab === cat 
+                    ? 'bg-brand-purple text-white shadow-lg shadow-purple-200 scale-105' 
+                    : 'text-gray-400 hover:text-brand-purple hover:bg-brand-purple/5 bg-gray-50/50'
+                  }`}
+                >
+                  {cat}
+                </button>
               ))}
             </div>
+          </div>
+          
+          <div className="hidden lg:flex bg-white p-2 rounded-full shadow-sm border border-brand-lilac/10 gap-1">
+            <button onClick={() => setViewMode('grid')} className={`p-3 rounded-full transition-all ${viewMode === 'grid' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}><LayoutGrid size={18}/></button>
+            <button onClick={() => setViewMode('list')} className={`p-3 rounded-full transition-all ${viewMode === 'list' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}><List size={18}/></button>
           </div>
         </div>
 
         {loading ? (
           <div className="py-20 md:py-32 flex justify-center"><Loader2 className="animate-spin text-brand-purple" size={48} /></div>
         ) : (
-          <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10" : "space-y-4 md:space-y-6"}>
+          <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12" : "max-w-4xl mx-auto space-y-4 md:space-y-6"}>
             {filteredProducts.map(product => (
               viewMode === 'grid' ? (
-                <div key={product.id} className="group bg-white rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-xl border border-brand-lilac/10 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
+                <div key={product.id} className="group bg-white rounded-[2.5rem] md:rounded-[4rem] overflow-hidden shadow-xl border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
                   <div className="relative aspect-square overflow-hidden">
                     <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
-                    <div className="absolute top-4 left-4 md:top-6 md:left-6 bg-brand-purple/90 backdrop-blur-md text-white px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest">
+                    <div className="absolute top-4 left-4 md:top-8 md:left-8 bg-brand-purple/90 backdrop-blur-md text-white px-3 py-1 md:px-5 md:py-2 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest">
                       {product.category}
                     </div>
                   </div>
-                  <div className="p-6 md:p-10 flex-grow flex flex-col">
-                    <h3 className="text-lg md:text-2xl font-black text-brand-dark mb-3 md:mb-4 leading-tight group-hover:text-brand-purple transition-colors line-clamp-2 h-12 md:h-16">{product.title}</h3>
-                    <div className="flex items-baseline gap-2 mb-6 md:mb-8">
+                  <div className="p-8 md:p-12 flex-grow flex flex-col">
+                    <h3 className="text-xl md:text-2xl font-black text-brand-dark mb-4 md:mb-6 leading-tight group-hover:text-brand-purple transition-colors line-clamp-2">{product.title}</h3>
+                    <div className="flex items-baseline gap-2 mb-8 md:mb-10">
                       <span className="text-2xl md:text-3xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</span>
                     </div>
-                    <button className="mt-auto w-full bg-gray-50 text-brand-purple py-3.5 md:py-4 rounded-xl md:rounded-2xl font-black text-xs md:text-sm group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={18} /></button>
+                    <button className="mt-auto w-full bg-gray-50 text-brand-purple py-4 md:py-5 rounded-2xl font-black text-sm group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={18} /></button>
                   </div>
                 </div>
               ) : (
-                <div key={product.id} className="group bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2.5rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-4 md:gap-8 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
-                  <img src={product.image_url} className="w-16 h-16 md:w-24 md:h-24 rounded-2xl md:rounded-3xl object-cover shrink-0" alt="" />
+                <div key={product.id} className="group bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-6 md:gap-10 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
+                  <img src={product.image_url} className="w-20 h-20 md:w-32 md:h-32 rounded-3xl object-cover shrink-0 border border-gray-100" alt="" />
                   <div className="flex-grow min-w-0">
-                    <div className="bg-brand-purple/10 text-brand-purple px-2 py-0.5 rounded-full text-[8px] font-black uppercase w-fit mb-1">{product.category}</div>
-                    <h3 className="text-sm md:text-xl font-black text-brand-dark truncate">{product.title}</h3>
+                    <div className="bg-brand-purple/10 text-brand-purple px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit mb-2">{product.category}</div>
+                    <h3 className="text-lg md:text-2xl font-black text-brand-dark truncate group-hover:text-brand-purple transition-colors">{product.title}</h3>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-base md:text-2xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
-                    <button className="hidden sm:flex text-brand-orange font-black text-xs uppercase items-center gap-1 mt-1">Ver <ArrowRight size={14}/></button>
+                    <p className="text-xl md:text-3xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
+                    <button className="hidden sm:flex text-brand-orange font-black text-xs uppercase items-center gap-1 mt-2 mx-auto md:mx-0 md:ml-auto">Ver Material <ArrowRight size={14}/></button>
                   </div>
                 </div>
               )
@@ -327,8 +387,6 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );

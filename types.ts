@@ -7,6 +7,7 @@ export interface Product {
   description: string;
   category: string;
   image_url: string;
+  download_url?: string; // Novo campo para o arquivo/link de entrega
   checkout_url?: string;
   features?: string[];
   created_at?: string;
