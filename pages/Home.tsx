@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Star, Zap, ArrowRight, Sparkles, Quote, Circle, CheckCircle2, ShoppingCart, Calendar, User, ArrowUpRight, ShieldCheck, Gem } from 'lucide-react';
 import { View, SiteContent, Product, BlogPost } from '../types';
@@ -26,17 +25,17 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
 
   return (
     <div className="space-y-16 md:space-y-32 pb-20 md:pb-32 overflow-x-hidden">
-      {/* Hero Section - Mobile Optimized */}
-      <section className="relative min-h-[95vh] lg:min-h-[90vh] flex items-stretch bg-brand-dark overflow-hidden px-4 pt-12 md:pt-32 pb-0">
+      {/* Hero Section - Mobile Optimized & Perfect Bottom Alignment */}
+      <section className="relative min-h-[90vh] lg:min-h-[85vh] flex flex-col justify-end bg-brand-dark overflow-hidden px-4 pt-12 md:pt-20">
         <div className="absolute top-10 left-10 text-brand-pink/20 animate-pulse hidden md:block">
            <svg width="150" height="30" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M0 10L10 0L20 10L30 0L40 10L50 0L60 10L70 0L80 10L90 0L100 10" stroke="currentColor" strokeWidth="3"/>
            </svg>
         </div>
         
-        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-center lg:items-end gap-0 md:gap-12 relative z-10 h-full">
+        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-end gap-0 md:gap-12 relative z-10 h-full">
           {/* Text Column - Centered on Mobile */}
-          <div className="text-white space-y-6 md:space-y-10 pb-8 md:pb-12 lg:pb-32 text-center lg:text-left lg:self-center z-30">
+          <div className="text-white space-y-6 md:space-y-10 pb-12 md:pb-24 lg:pb-32 text-center lg:text-left self-center z-30">
             <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 md:px-6 md:py-2.5 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest border border-white/5 mx-auto lg:mx-0">
               <Sparkles size={14} className="text-brand-orange" /> Método Protagonizar
             </div>
@@ -57,14 +56,20 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
             </div>
           </div>
 
-          {/* Image Column - Larger on Mobile and Clued to Bottom */}
-          <div className="relative flex justify-center lg:justify-end lg:items-end self-end mt-auto md:mt-8 lg:mt-0 w-full overflow-visible">
-            <div className="absolute bottom-0 w-full h-[60%] bg-gradient-to-t from-brand-dark to-transparent z-20 pointer-events-none md:hidden"></div>
-            <div className="absolute bottom-10 right-0 lg:right-0 w-[110%] h-[100%] bg-brand-purple/20 rounded-t-full blur-[80px] -z-10"></div>
+          {/* Image Column - Flush to Bottom and Fast Loading */}
+          <div className="relative flex justify-center lg:justify-end items-end self-end w-full overflow-visible">
+            {/* Gradient Overlay for seamless blend */}
+            <div className="absolute bottom-0 w-full h-[40%] bg-gradient-to-t from-brand-dark to-transparent z-20 pointer-events-none md:hidden"></div>
+            
+            {/* Glowing background behind image */}
+            <div className="absolute bottom-0 right-0 lg:right-0 w-[110%] h-[80%] bg-brand-purple/20 rounded-t-full blur-[80px] -z-10"></div>
+            
             <img 
               src={content.homeheroimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png"} 
-              className="relative z-10 max-w-[110%] sm:max-w-[80%] md:max-w-[70%] lg:max-w-none lg:w-[125%] h-auto drop-shadow-[0_0_30px_rgba(0,0,0,0.5)] block mb-0 lg:translate-x-16 origin-bottom transform-gpu" 
-              alt="Sande Almeida" 
+              className="relative z-10 max-w-[120%] sm:max-w-[90%] md:max-w-[80%] lg:max-w-none lg:w-[130%] h-auto drop-shadow-[0_0_30px_rgba(0,0,0,0.5)] block mb-0 lg:translate-x-16 origin-bottom transform-gpu align-bottom" 
+              alt="Sande Almeida"
+              fetchPriority="high"
+              loading="eager"
             />
           </div>
         </div>
