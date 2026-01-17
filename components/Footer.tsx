@@ -47,9 +47,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, content }) => {
             <h3 className="font-black text-xl mb-8 text-brand-orange tracking-tight uppercase">Institucional</h3>
             <ul className="space-y-4 text-gray-400 font-bold">
               <li><button onClick={() => onNavigate('faq')} className="hover:text-white hover:translate-x-2 transition-all flex items-center gap-2">Perguntas Frequentes (FAQ)</button></li>
-              <li><button onClick={() => onNavigate('policies')} className="hover:text-white hover:translate-x-2 transition-all flex items-center gap-2">Garantia de 7 Dias</button></li>
-              <li><button className="hover:text-white hover:translate-x-2 transition-all">Políticas de Devolução</button></li>
-              <li><button className="hover:text-white hover:translate-x-2 transition-all">Privacidade</button></li>
+              <li><button onClick={() => onNavigate('refund')} className="hover:text-white hover:translate-x-2 transition-all flex items-center gap-2">Garantia de 7 Dias</button></li>
+              <li><button onClick={() => onNavigate('refund')} className="hover:text-white hover:translate-x-2 transition-all">Políticas de Devolução</button></li>
+              <li><button onClick={() => onNavigate('privacy')} className="hover:text-white hover:translate-x-2 transition-all">Privacidade</button></li>
               <li>
                 <button 
                   onClick={() => onNavigate('admin')} 
@@ -79,9 +79,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, content }) => {
             Copyright © 2026 Professora Sande Almeida. Todos os direitos reservados.
           </p>
           <div className="flex gap-8 text-[10px] font-black uppercase tracking-widest text-gray-500">
-            <button className="hover:text-white">Termos de Uso</button>
-            <button className="hover:text-white">Suporte</button>
-            <button className="hover:text-white">Privacidade</button>
+            <button onClick={() => onNavigate('privacy')} className="hover:text-white">Termos de Uso</button>
+            <button onClick={() => onNavigate('contact')} className="hover:text-white">Suporte</button>
+            <button onClick={() => onNavigate('privacy')} className="hover:text-white">Privacidade</button>
           </div>
         </div>
       </div>

@@ -6,45 +6,52 @@ import {
   Upload, Image as ImageIcon, FileText, Info, Edit3, X, Loader2, ShoppingCart, Palette, Globe, AlertTriangle,
   Eye, MessageSquare, MessageCircle, Mail, Calendar, GripVertical, Phone, Gem, ExternalLink, Image, Copy, Database,
   Lightbulb, List, LayoutGrid, CheckCircle2, ChevronRight, ShieldCheck, RefreshCcw, Server, Terminal, Check, Wifi, WifiOff,
-  Package, Tag, BarChart3, Target, TrendingUp
+  Package, Tag, BarChart3, Target, TrendingUp, MapPin, Activity, LogOut, ShieldAlert, BarChart, Code
 } from 'lucide-react';
-import { SiteContent, Lead, LeadStatus, Product, BlogPost } from '../types';
+import { SiteContent, Lead, LeadStatus, Product, BlogPost, View } from '../types';
 import { supabase } from '../lib/supabase';
+import { NotificationType } from '../components/Notification';
 
 interface AdminProps {
   content: SiteContent;
   onUpdate: (content: SiteContent) => Promise<void>;
+  onNavigate: (view: View) => void;
+  notify: (type: NotificationType, title: string, message: string) => void;
 }
 
 type Tab = 'leads' | 'content_home' | 'content_about' | 'manage_store' | 'manage_blog' | 'settings' | 'payments';
 
 const STATUS_OPTIONS: LeadStatus[] = ['Novo', 'Aguardando Pagamento', 'Pago', 'Cancelado', 'Em Contato', 'Fechado', 'Perdido'];
 
-export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
+export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, notify }) => {
   const [activeTab, setActiveTab] = useState<Tab>('leads');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [blogViewMode, setBlogViewMode] = useState<'grid' | 'list'>('list');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [form, setForm] = useState<SiteContent>(content);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLeadDetailOpen, setIsLeadDetailOpen] = useState(false);
+  const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
   const [editItem, setEditItem] = useState<any>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLeadDetailOpen, setIsLeadDetailOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
-    fetchLeads();
-    fetchProducts();
-    fetchBlog();
+    fetchAllData();
     setForm(content);
-  }, [content]);
+  }, [content, activeTab]);
+
+  const fetchAllData = async () => {
+    if (activeTab === 'leads') fetchLeads();
+    if (activeTab === 'manage_store') fetchProducts();
+    if (activeTab === 'manage_blog') fetchBlog();
+    if (activeTab === 'payments') fetchWebhookLogs();
+  };
 
   const fetchLeads = async () => {
     const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
@@ -61,25 +68,36 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     if (data) setPosts(data);
   };
 
+  const fetchWebhookLogs = async () => {
+    const { data } = await supabase.from('leads').select('id, name, email, status, payment_id, created_at').not('payment_id', 'is', null).order('created_at', { ascending: false });
+    if (data) setWebhookLogs(data);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    notify('info', 'Sessão Encerrada', 'Você saiu do painel administrativo.');
+    onNavigate('home');
+  };
+
   const handleSaveContent = async () => {
     setSavingSettings(true);
-    setErrorMessage(null);
     try {
       await onUpdate(form);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
+      // O App.tsx já dispara o notify de sucesso via handleUpdateContent
     } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao salvar');
+      // Erro já tratado no App.tsx
     } finally {
       setSavingSettings(false);
     }
   };
 
   const deleteItem = async (table: string, id: string) => {
-    if (confirm("Deseja realmente excluir?")) {
+    if (confirm("Deseja realmente excluir este item permanentemente?")) {
       const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error) alert("Erro ao excluir");
-      else {
+      if (error) {
+        notify('error', 'Erro na Exclusão', error.message);
+      } else {
+        notify('success', 'Item Removido', 'O item foi excluído com sucesso.');
         if (table === 'products') fetchProducts();
         else if (table === 'blog_posts') fetchBlog();
         else if (table === 'leads') { fetchLeads(); setIsLeadDetailOpen(false); }
@@ -92,6 +110,9 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     if (!error) {
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
       if (selectedLead?.id === leadId) setSelectedLead(prev => prev ? { ...prev, status: newStatus } : null);
+      notify('success', 'Status Atualizado', `Lead alterado para: ${newStatus}`);
+    } else {
+      notify('error', 'Erro', 'Não foi possível atualizar o status.');
     }
   };
 
@@ -102,15 +123,15 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
     try {
       if (editItem.id) {
         await supabase.from(table).update(editItem).eq('id', editItem.id);
+        notify('success', 'Atualizado', 'Item salvo com sucesso.');
       } else {
         await supabase.from(table).insert([editItem]);
+        notify('success', 'Criado', 'Novo item adicionado à vitrine.');
       }
       if (table === 'products') fetchProducts(); else fetchBlog();
       setIsModalOpen(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: any) {
-      setErrorMessage(err.message);
+      notify('error', 'Falha ao Salvar', err.message);
     } finally {
       setLoading(false);
     }
@@ -119,29 +140,34 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate }) => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string, target: 'site' | 'modal') => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        notify('warning', 'Arquivo Grande', 'Tente usar imagens menores que 2MB para melhor performance.');
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         if (target === 'site') setForm(prev => ({ ...prev, [field]: reader.result as string }));
         else setEditItem((prev: any) => ({ ...prev, [field]: reader.result as string }));
+        notify('info', 'Imagem Carregada', 'A imagem foi processada com sucesso.');
       };
       reader.readAsDataURL(file);
     }
   };
 
   const copySql = () => {
-    const sql = `ALTER TABLE leads 
-ADD COLUMN IF NOT EXISTS product_id TEXT,
-ADD COLUMN IF NOT EXISTS product_name TEXT,
-ADD COLUMN IF NOT EXISTS value NUMERIC,
-ADD COLUMN IF NOT EXISTS payment_id TEXT;
-NOTIFY pgrst, 'reload schema';`;
+    const sql = `-- Código para executar no SQL Editor do Supabase para promover admin:
+UPDATE auth.users
+SET raw_user_meta_data = 
+  CASE 
+    WHEN raw_user_meta_data IS NULL THEN '{"role": "admin"}'::jsonb
+    ELSE raw_user_meta_data || '{"role": "admin"}'::jsonb
+  END
+WHERE email = 'SEU_EMAIL_AQUI';`;
     navigator.clipboard.writeText(sql);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    notify('success', 'Copiado!', 'Comando SQL disponível na sua área de transferência.');
   };
 
   const SidebarItem = ({ id, icon, label }: { id: Tab, icon: React.ReactNode, label: string }) => (
-    <button onClick={() => { setActiveTab(id); setErrorMessage(null); }} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl font-black text-sm transition-all ${activeTab === id ? 'bg-brand-purple text-white shadow-xl' : 'text-gray-400 hover:bg-brand-lilac/10'}`}>
+    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl font-black text-sm transition-all ${activeTab === id ? 'bg-brand-purple text-white shadow-xl' : 'text-gray-400 hover:bg-brand-lilac/10'}`}>
       <div className="shrink-0">{icon}</div>
       <span className={`whitespace-nowrap transition-opacity ${isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>{label}</span>
     </button>
@@ -164,242 +190,296 @@ NOTIFY pgrst, 'reload schema';`;
           <SidebarItem id="settings" icon={<Palette size={20} />} label="Aparência" />
           <SidebarItem id="payments" icon={<CreditCard size={20} />} label="Pagamentos Asaas" />
         </nav>
+        <button onClick={handleLogout} className="mt-8 flex items-center gap-4 px-4 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 transition-all">
+          <LogOut size={20} />
+          <span className={`whitespace-nowrap ${isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>Sair</span>
+        </button>
       </aside>
 
-      <div className="flex-grow p-8 lg:p-12 overflow-y-auto max-w-full overflow-x-hidden custom-scrollbar">
-        <header className="flex justify-between items-center mb-12">
-          <h1 className="text-4xl font-black text-brand-dark uppercase tracking-tighter">
-            {activeTab === 'leads' ? 'Kanban de Leads' : 
-             activeTab === 'manage_store' ? 'Gerenciar Vitrine' :
-             activeTab === 'manage_blog' ? 'Gerenciar Blog' :
-             activeTab === 'settings' ? 'Aparência & Tracking' : 
-             activeTab === 'payments' ? 'Pagamentos Asaas' : 'Configurações'}
-          </h1>
-          <div className="flex gap-4">
-            {['content_home', 'content_about', 'settings', 'payments'].includes(activeTab) && (
-              <button onClick={handleSaveContent} disabled={savingSettings} className="bg-brand-purple text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2">
-                {savingSettings ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} SALVAR
-              </button>
-            )}
-            {(activeTab === 'manage_store' || activeTab === 'manage_blog') && (
-              <button onClick={() => { setEditItem({}); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2">
-                <Plus size={20} /> ADICIONAR NOVO
-              </button>
-            )}
-          </div>
-        </header>
+      <div className="flex-grow overflow-y-auto max-w-full overflow-x-hidden custom-scrollbar bg-gray-50/50">
+        <div className="max-w-7xl mx-auto p-8 lg:p-12">
+          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 bg-white/50 p-8 rounded-[2.5rem] border border-gray-100 backdrop-blur-sm">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl font-black text-brand-dark uppercase tracking-tighter">
+                  {activeTab === 'leads' ? 'Kanban de Leads' : 
+                  activeTab === 'manage_store' ? 'Gerenciar Vitrine' :
+                  activeTab === 'manage_blog' ? 'Gerenciar Blog' :
+                  activeTab === 'settings' ? 'Aparência & Branding' : 
+                  activeTab === 'payments' ? 'Pagamentos Asaas' : 'Configurações'}
+                </h1>
+                <div className="bg-brand-orange/10 text-brand-orange px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                  <ShieldAlert size={12} /> Super Admin
+                </div>
+              </div>
+              
+              {(activeTab === 'manage_store' || activeTab === 'manage_blog') && (
+                 <div className="flex items-center gap-4 mt-4 bg-white p-2 rounded-xl border border-gray-100 w-fit">
+                   <button onClick={() => activeTab === 'manage_store' ? setViewMode('grid') : setBlogViewMode('grid')} className={`p-2 rounded-lg ${(activeTab === 'manage_store' ? viewMode : blogViewMode) === 'grid' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-400'}`}><LayoutGrid size={16}/></button>
+                   <button onClick={() => activeTab === 'manage_store' ? setViewMode('list') : setBlogViewMode('list')} className={`p-2 rounded-lg ${(activeTab === 'manage_store' ? viewMode : blogViewMode) === 'list' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-400'}`}><List size={16}/></button>
+                 </div>
+              )}
+            </div>
 
-        {showSuccess && <div className="bg-green-500 text-white p-6 rounded-2xl font-black mb-8 flex items-center gap-3"><CheckCircle2 /> Salvo com sucesso!</div>}
-        {errorMessage && <div className="bg-red-500 text-white p-6 rounded-2xl font-black mb-8 flex items-center gap-3"><AlertTriangle /> {errorMessage}</div>}
+            <div className="flex gap-4">
+              {['content_home', 'content_about', 'settings', 'payments'].includes(activeTab) && (
+                <button onClick={handleSaveContent} disabled={savingSettings} className="bg-brand-purple text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:scale-105 transition-all">
+                  {savingSettings ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} SALVAR
+                </button>
+              )}
+              {(activeTab === 'manage_store' || activeTab === 'manage_blog') && (
+                <button onClick={() => { setEditItem({}); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:scale-105 transition-all">
+                  <Plus size={20} /> ADICIONAR NOVO
+                </button>
+              )}
+            </div>
+          </header>
 
-        {activeTab === 'leads' && (
-          <div className="flex gap-6 overflow-x-auto pb-10 min-h-[75vh] custom-scrollbar-h">
-            {STATUS_OPTIONS.map(status => (
-              <div key={status} className="bg-gray-200/40 p-6 rounded-[2.5rem] min-w-[340px] flex flex-col border border-gray-200/50 backdrop-blur-sm">
-                <div className="flex justify-between items-center mb-6 px-2">
-                  <h4 className="font-black text-[11px] uppercase text-gray-500 tracking-widest">{status}</h4>
-                  <div className="flex items-center gap-2">
+          {activeTab === 'leads' && (
+            <div className="flex gap-6 overflow-x-auto pb-10 min-h-[75vh] custom-scrollbar-h">
+              {STATUS_OPTIONS.map(status => (
+                <div key={status} className="bg-gray-200/40 p-6 rounded-[2.5rem] min-w-[340px] flex flex-col border border-gray-200/50 backdrop-blur-sm">
+                  <div className="flex justify-between items-center mb-6 px-2">
+                    <h4 className="font-black text-[11px] uppercase text-gray-500 tracking-widest">{status}</h4>
                     <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-brand-purple shadow-sm">
                       {leads.filter(l => l.status === status).length}
                     </span>
                   </div>
-                </div>
-                
-                <div className="space-y-4 flex-grow">
-                  {leads.filter(l => l.status === status).map(lead => (
-                    <div key={lead.id} onClick={() => { setSelectedLead(lead); setIsLeadDetailOpen(true); }} className="bg-white p-6 rounded-[2.2rem] shadow-sm border border-gray-100 cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all group relative overflow-hidden">
-                      {/* Highlighted Value Badge - IMPROVED */}
-                      {lead.value && (
-                        <div className={`absolute top-0 right-0 px-5 py-2 rounded-bl-[1.5rem] font-black text-[12px] shadow-sm transition-colors ${lead.status === 'Pago' ? 'bg-green-500 text-white' : 'bg-brand-orange text-white'}`}>
-                          R$ {Number(lead.value).toFixed(2)}
+                  <div className="space-y-4 flex-grow">
+                    {leads.filter(l => l.status === status).map(lead => (
+                      <div key={lead.id} onClick={() => { setSelectedLead(lead); setIsLeadDetailOpen(true); }} className="bg-white p-6 rounded-[2.2rem] shadow-sm border border-gray-100 cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all group relative overflow-hidden flex flex-col">
+                        <div className="mb-4">
+                          <p className="font-black text-brand-dark text-lg leading-tight group-hover:text-brand-purple transition-colors truncate pr-4">{lead.name}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1 truncate">{lead.email}</p>
                         </div>
-                      )}
-                      
-                      <div className="mb-4">
-                        <p className="font-black text-brand-dark text-lg leading-tight group-hover:text-brand-purple transition-colors truncate pr-12">{lead.name}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1 truncate">{lead.subject}</p>
-                      </div>
-
-                      {lead.product_name && (
-                        <div className="bg-brand-cream/50 p-2.5 rounded-xl mb-4 flex items-center gap-2 border border-brand-orange/10">
-                          <Package size={14} className="text-brand-orange" />
-                          <span className="text-[9px] font-black text-brand-dark/70 truncate uppercase">{lead.product_name}</span>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between items-center pt-4 border-t border-gray-50">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <Calendar size={12} />
-                          <span className="text-[10px] font-bold">{new Date(lead.created_at).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {lead.status === 'Pago' && <div className="bg-green-100 p-1.5 rounded-full text-green-500"><CheckCircle2 size={14} /></div>}
-                          <Eye size={16} className="text-brand-purple opacity-40 group-hover:opacity-100 transition-opacity" />
+                        
+                        <div className="mt-auto space-y-3">
+                          {lead.product_name && (
+                            <div className="bg-brand-cream/50 p-2.5 rounded-xl flex items-center gap-2 border border-brand-orange/10">
+                              <Package size={14} className="text-brand-orange" />
+                              <span className="text-[9px] font-black text-brand-dark/70 truncate uppercase">{lead.product_name}</span>
+                            </div>
+                          )}
+                          
+                          {lead.value && (
+                            <div className={`px-4 py-1.5 rounded-full font-black text-[10px] w-fit shadow-sm ${lead.status === 'Pago' ? 'bg-green-50 text-white' : 'bg-brand-purple/10 text-brand-purple'}`}>
+                              R$ {Number(lead.value).toFixed(2)}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* RESTORED: Vitrine de Materiais */}
-        {activeTab === 'manage_store' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map(p => (
-              <div key={p.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 group">
-                <div className="aspect-square relative overflow-hidden">
-                  <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-all" />
-                  <div className="absolute top-4 right-4 flex gap-2">
-                    <button onClick={() => { setEditItem(p); setIsModalOpen(true); }} className="p-3 bg-white/90 backdrop-blur-md rounded-xl text-brand-purple shadow-lg"><Edit3 size={18} /></button>
-                    <button onClick={() => deleteItem('products', p.id)} className="p-3 bg-white/90 backdrop-blur-md rounded-xl text-red-500 shadow-lg"><Trash2 size={18} /></button>
+                    ))}
                   </div>
                 </div>
-                <div className="p-6">
-                  <p className="text-[10px] font-black text-brand-orange uppercase mb-1">{p.category}</p>
-                  <h4 className="font-black text-brand-dark mb-4 line-clamp-1">{p.title}</h4>
-                  <p className="font-black text-brand-purple text-xl">R$ {Number(p.price).toFixed(2)}</p>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'manage_store' && (
+            <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8" : "space-y-4"}>
+              {products.map(product => (
+                viewMode === 'grid' ? (
+                  <div key={product.id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 group hover:shadow-xl transition-all">
+                    <img src={product.image_url} className="w-full aspect-square object-cover" />
+                    <div className="p-6">
+                      <h4 className="font-black text-brand-dark truncate">{product.title}</h4>
+                      <div className="flex gap-2 mt-4">
+                         <button onClick={() => { setEditItem(product); setIsModalOpen(true); }} className="p-2 bg-brand-purple/5 text-brand-purple rounded-lg"><Edit3 size={16}/></button>
+                         <button onClick={() => deleteItem('products', product.id)} className="p-2 bg-red-50 text-red-500 rounded-lg"><Trash2 size={16}/></button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={product.id} className="bg-white p-4 rounded-2xl flex items-center gap-6 shadow-sm border border-gray-50 group hover:border-brand-purple transition-all">
+                    <img src={product.image_url} className="w-16 h-16 rounded-xl object-cover" />
+                    <div className="flex-grow">
+                      <h4 className="font-black text-brand-dark">{product.title}</h4>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{product.category} • R$ {Number(product.price).toFixed(2)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditItem(product); setIsModalOpen(true); }} className="p-3 text-brand-purple hover:bg-brand-purple/5 rounded-xl transition-all"><Edit3 size={18} /></button>
+                      <button onClick={() => deleteItem('products', product.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'manage_blog' && (
+            <div className={blogViewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8" : "space-y-4"}>
+              {posts.map(post => (
+                blogViewMode === 'grid' ? (
+                  <div key={post.id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 group hover:shadow-xl transition-all">
+                    <img src={post.image_url} className="w-full aspect-video object-cover" />
+                    <div className="p-6">
+                      <h4 className="font-black text-brand-dark truncate">{post.title}</h4>
+                      <div className="flex gap-2 mt-4">
+                         <button onClick={() => { setEditItem(post); setIsModalOpen(true); }} className="p-2 bg-brand-purple/5 text-brand-purple rounded-lg"><Edit3 size={16}/></button>
+                         <button onClick={() => deleteItem('blog_posts', post.id)} className="p-2 bg-red-50 text-red-500 rounded-lg"><Trash2 size={16}/></button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={post.id} className="bg-white p-4 rounded-2xl flex items-center gap-6 shadow-sm border border-gray-50 group hover:border-brand-purple transition-all">
+                    <img src={post.image_url} className="w-24 h-16 rounded-xl object-cover" />
+                    <div className="flex-grow">
+                      <h4 className="font-black text-brand-dark truncate">{post.title}</h4>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{post.category}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditItem(post); setIsModalOpen(true); }} className="p-3 text-brand-purple hover:bg-brand-purple/5 rounded-xl transition-all"><Edit3 size={18} /></button>
+                      <button onClick={() => deleteItem('blog_posts', post.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'content_home' && (
+            <div className="max-w-5xl space-y-10">
+              <Section title="Hero & Cabeçalho" icon={<HomeIcon className="text-brand-purple"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <AdminInput label="Título do Hero" value={form.homeherotitle} onChange={v => setForm({...form, homeherotitle: v})} />
+                    <AdminInput label="Subtítulo do Hero" textarea value={form.homeherosub} onChange={v => setForm({...form, homeherosub: v})} />
+                  </div>
+                  <ImageUp label="Imagem do Hero" current={form.homeheroimageurl} onUpload={e => handleImageUpload(e, 'homeheroimageurl', 'site')} />
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* RESTORED: Conteúdo Blog */}
-        {activeTab === 'manage_blog' && (
-          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 text-[10px] font-black uppercase text-gray-400">
-                  <th className="p-6">Título</th>
-                  <th className="p-6">Categoria</th>
-                  <th className="p-6">Data</th>
-                  <th className="p-6">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {posts.map(post => (
-                  <tr key={post.id} className="hover:bg-gray-50/50">
-                    <td className="p-6 font-black text-brand-dark">{post.title}</td>
-                    <td className="p-6 text-sm font-bold text-gray-500">{post.category}</td>
-                    <td className="p-6 text-sm text-gray-400">{new Date(post.publish_date).toLocaleDateString()}</td>
-                    <td className="p-6 flex gap-2">
-                      <button onClick={() => { setEditItem(post); setIsModalOpen(true); }} className="p-2 text-brand-purple hover:bg-brand-lilac/10 rounded-lg"><Edit3 size={18} /></button>
-                      <button onClick={() => deleteItem('blog_posts', post.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* RESTORED: Home & Clube */}
-        {activeTab === 'content_home' && (
-          <div className="max-w-4xl space-y-10">
-            <Section title="Hero & Cabeçalho" icon={<HomeIcon className="text-brand-purple"/>}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <AdminInput label="Título do Hero" value={form.homeherotitle} onChange={v => setForm({...form, homeherotitle: v})} />
-                <AdminInput label="Subtítulo do Hero" textarea value={form.homeherosub} onChange={v => setForm({...form, homeherosub: v})} />
-              </div>
-              <ImageUp label="Imagem do Hero" current={form.homeheroimageurl} onUpload={e => handleImageUpload(e, 'homeheroimageurl', 'site')} />
-            </Section>
-            <Section title="Clube Protagonista" icon={<Gem className="text-brand-orange"/>}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <AdminInput label="Título do Clube" value={form.clubetitle} onChange={v => setForm({...form, clubetitle: v})} />
-                <AdminInput label="Preço Anual" type="number" value={form.clubeprice} onChange={v => setForm({...form, clubeprice: Number(v)})} />
-                <div className="md:col-span-2">
-                  <AdminInput label="Descrição Curta" textarea value={form.clubedescription} onChange={v => setForm({...form, clubedescription: v})} />
-                </div>
-              </div>
-              <ImageUp label="Banner do Clube" current={form.clubebannerimageurl} onUpload={e => handleImageUpload(e, 'clubebannerimageurl', 'site')} />
-            </Section>
-          </div>
-        )}
-
-        {/* RESTORED: Sobre & Contato */}
-        {activeTab === 'content_about' && (
-          <div className="max-w-4xl space-y-10">
-            <Section title="Sobre a Sande / Lax" icon={<Info className="text-brand-purple"/>}>
-              <AdminInput label="Texto Biográfico" textarea value={form.abouttext} onChange={v => setForm({...form, abouttext: v})} />
-              <ImageUp label="Foto da Trajetória" current={form.abouttrajectoryimageurl} onUpload={e => handleImageUpload(e, 'abouttrajectoryimageurl', 'site')} />
-            </Section>
-            <Section title="Galeria & Contato" icon={<ImageIcon className="text-brand-orange"/>}>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <ImageUp label="Galeria 1" current={form.aboutfeaturedimage1} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage1', 'site')} />
-                  <ImageUp label="Galeria 2" current={form.aboutfeaturedimage2} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage2', 'site')} />
-                  <ImageUp label="Galeria 3" current={form.aboutfeaturedimage3} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage3', 'site')} />
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
-                 <AdminInput label="WhatsApp de Suporte" value={form.supportwhatsapp} onChange={v => setForm({...form, supportwhatsapp: v})} />
-                 <AdminInput label="E-mail de Suporte" value={form.supportemail} onChange={v => setForm({...form, supportemail: v})} />
-               </div>
-            </Section>
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="max-w-4xl space-y-12">
-             <Section title="Marketing & Tracking" icon={<Target className="text-brand-purple"/>}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <AdminInput label="Google Analytics ID" placeholder="G-XXXXXXX" value={form.google_analytics_id} onChange={v => setForm({...form, google_analytics_id: v})} />
-                  <AdminInput label="Meta Pixel ID" placeholder="1234..." value={form.meta_pixel_id} onChange={v => setForm({...form, meta_pixel_id: v})} />
-                </div>
-                <AdminInput label="Token API Meta" textarea value={form.meta_api_token} onChange={v => setForm({...form, meta_api_token: v})} />
-             </Section>
-             <Section title="Logotipo & Favicon" icon={<Palette className="text-brand-purple"/>}>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                 <ImageUp label="Logotipo" current={form.logourl} onUpload={e => handleImageUpload(e, 'logourl', 'site')} />
-                 <ImageUp label="Favicon" current={form.faviconurl} onUpload={e => handleImageUpload(e, 'faviconurl', 'site')} />
-               </div>
-             </Section>
-          </div>
-        )}
-
-        {activeTab === 'payments' && (
-          <div className="max-w-4xl space-y-10">
-            <Section title="Integração Bancária Asaas" icon={<CreditCard className="text-brand-purple"/>}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <AdminInput label="API Key Produção" type="password" value={form.asaas_production_key} onChange={v => setForm({...form, asaas_production_key: v})} />
-                <AdminInput label="API Key Sandbox" type="password" value={form.asaas_sandbox_key} onChange={v => setForm({...form, asaas_sandbox_key: v})} />
-              </div>
-              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
-                <input type="checkbox" id="use_sandbox" checked={form.asaas_use_sandbox} onChange={e => setForm({...form, asaas_use_sandbox: e.target.checked})} className="w-6 h-6 rounded-lg accent-brand-purple" />
-                <label htmlFor="use_sandbox" className="font-black text-xs uppercase text-gray-400">Usar Ambiente Sandbox</label>
-              </div>
-              <AdminInput label="URL do Webhook Backend" placeholder="https://..." value={form.asaas_backend_url} onChange={v => setForm({...form, asaas_backend_url: v})} />
+              </Section>
               
-              <div className="mt-8 bg-gray-900 rounded-3xl p-8 text-white relative border-t-4 border-brand-orange shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <Database size={20} className="text-brand-orange" />
-                  <h4 className="font-black text-xs uppercase tracking-widest">Database Sync (Kanban)</h4>
+              <Section title="Clube Protagonista" icon={<Gem className="text-brand-orange"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <AdminInput label="Título do Clube" value={form.clubetitle} onChange={v => setForm({...form, clubetitle: v})} />
+                    <AdminInput label="Preço Anual" type="number" value={form.clubeprice} onChange={v => setForm({...form, clubeprice: Number(v)})} />
+                    <AdminInput label="Descrição Curta" textarea value={form.clubedescription} onChange={v => setForm({...form, clubedescription: v})} />
+                  </div>
+                  <ImageUp label="Banner do Clube" current={form.clubebannerimageurl} onUpload={e => handleImageUpload(e, 'clubebannerimageurl', 'site')} />
                 </div>
-                <p className="text-[10px] text-gray-400 font-medium mb-4">Execute no Supabase para habilitar rastreamento de produtos no Kanban:</p>
-                <div className="bg-black/50 p-4 rounded-xl font-mono text-[10px] text-green-400 relative">
-                  <button onClick={copySql} className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 p-2 rounded-lg text-white">
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
-                  <pre className="whitespace-pre-wrap leading-relaxed">
-{`ALTER TABLE leads 
-ADD COLUMN IF NOT EXISTS product_id TEXT,
-ADD COLUMN IF NOT EXISTS product_name TEXT,
-ADD COLUMN IF NOT EXISTS value NUMERIC,
-ADD COLUMN IF NOT EXISTS payment_id TEXT;
-NOTIFY pgrst, 'reload schema';`}
-                  </pre>
+              </Section>
+            </div>
+          )}
+
+          {activeTab === 'content_about' && (
+            <div className="max-w-5xl space-y-10">
+              <Section title="Sobre a Sande / Empresa" icon={<Info className="text-brand-purple"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <AdminInput label="Título da Seção" value={form.abouttitle} onChange={v => setForm({...form, abouttitle: v})} />
+                    <AdminInput label="Texto de Biografia" textarea value={form.abouttext} onChange={v => setForm({...form, abouttext: v})} />
+                  </div>
+                  <ImageUp label="Imagem da Trajetória" current={form.abouttrajectoryimageurl} onUpload={e => handleImageUpload(e, 'abouttrajectoryimageurl', 'site')} />
                 </div>
-              </div>
-            </Section>
-          </div>
-        )}
+              </Section>
+
+              <Section title="Galeria Destaque" icon={<Image className="text-brand-orange"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <ImageUp label="Imagem 1" current={form.aboutfeaturedimage1} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage1', 'site')} />
+                  <ImageUp label="Imagem 2" current={form.aboutfeaturedimage2} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage2', 'site')} />
+                  <ImageUp label="Imagem 3" current={form.aboutfeaturedimage3} onUpload={e => handleImageUpload(e, 'aboutfeaturedimage3', 'site')} />
+                </div>
+              </Section>
+
+              <Section title="Contatos de Suporte" icon={<MessageCircle className="text-brand-pink"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <AdminInput label="WhatsApp de Suporte (DDI+DDD+Número)" value={form.supportwhatsapp} onChange={v => setForm({...form, supportwhatsapp: v})} />
+                  <AdminInput label="E-mail de Contato" value={form.supportemail} onChange={v => setForm({...form, supportemail: v})} />
+                </div>
+              </Section>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="max-w-5xl space-y-10">
+              <Section title="Branding & Identidade" icon={<Palette className="text-brand-purple"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <ImageUp label="Logotipo Principal" current={form.logourl} onUpload={e => handleImageUpload(e, 'logourl', 'site')} />
+                  <ImageUp label="Favicon (Ícone Aba)" current={form.faviconurl} onUpload={e => handleImageUpload(e, 'faviconurl', 'site')} />
+                </div>
+              </Section>
+
+              <Section title="Marketing & Analytics" icon={<BarChart className="text-brand-orange"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <AdminInput label="Google Analytics ID (G-XXXXXX)" value={form.google_analytics_id} onChange={v => setForm({...form, google_analytics_id: v})} />
+                  <AdminInput label="Meta Pixel ID" value={form.meta_pixel_id} onChange={v => setForm({...form, meta_pixel_id: v})} />
+                  <div className="md:col-span-2">
+                    <AdminInput label="Meta API Token (CAPI)" value={form.meta_api_token} onChange={v => setForm({...form, meta_api_token: v})} />
+                  </div>
+                </div>
+              </Section>
+            </div>
+          )}
+
+          {activeTab === 'payments' && (
+            <div className="max-w-5xl space-y-10">
+              <Section title="Integração Asaas" icon={<CreditCard className="text-brand-purple"/>}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <AdminInput label="Backend Checkout URL" value={form.asaas_backend_url} onChange={v => setForm({...form, asaas_backend_url: v})} placeholder="https://..." />
+                  <div className="flex items-center gap-4 pt-8">
+                    <label className="text-xs font-black uppercase tracking-widest text-gray-500">Modo Sandbox?</label>
+                    <button onClick={() => setForm({...form, asaas_use_sandbox: !form.asaas_use_sandbox})} className={`w-14 h-8 rounded-full relative transition-all ${form.asaas_use_sandbox ? 'bg-brand-orange' : 'bg-gray-200'}`}>
+                      <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${form.asaas_use_sandbox ? 'right-1' : 'left-1'}`}></div>
+                    </button>
+                  </div>
+                  <AdminInput label="Chave Sandbox" value={form.asaas_sandbox_key} onChange={v => setForm({...form, asaas_sandbox_key: v})} type="password" />
+                  <AdminInput label="Chave Produção" value={form.asaas_production_key} onChange={v => setForm({...form, asaas_production_key: v})} type="password" />
+                </div>
+              </Section>
+
+              <Section title="Histórico de Vendas" icon={<Activity className="text-brand-orange"/>}>
+                 <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm overflow-x-auto">
+                   <table className="w-full text-left">
+                     <thead className="bg-gray-50 border-b">
+                       <tr>
+                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Data</th>
+                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Cliente</th>
+                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">ID Pagamento</th>
+                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-100">
+                       {webhookLogs.map(log => (
+                         <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                           <td className="px-6 py-4 text-[11px] font-bold text-gray-500 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                           <td className="px-6 py-4 text-[12px] font-black text-brand-dark whitespace-nowrap">{log.name}</td>
+                           <td className="px-6 py-4 font-mono text-[10px] text-gray-400">{log.payment_id}</td>
+                           <td className="px-6 py-4">
+                             <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${log.status === 'Pago' ? 'bg-green-100 text-green-600' : 'bg-brand-orange/10 text-brand-orange'}`}>
+                               {log.status}
+                             </span>
+                           </td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                 </div>
+              </Section>
+              
+              <Section title="Super Admin Promotor" icon={<ShieldAlert className="text-brand-purple"/>}>
+                 <div className="bg-brand-dark p-10 rounded-[2.5rem] text-white overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-3 mb-6">
+                        <Code className="text-brand-orange" />
+                        <h4 className="text-xl font-black uppercase tracking-tight">Utilidade de Banco de Dados</h4>
+                      </div>
+                      <p className="text-sm font-medium text-gray-300 mb-8 max-w-2xl">Use o comando SQL abaixo no seu dashboard do Supabase para promover novos e-mails a administradores manualmente.</p>
+                      <button onClick={copySql} className="bg-brand-purple px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-brand-orange transition-all shadow-2xl">
+                        <Copy size={18} /> COPIAR COMANDO SQL
+                      </button>
+                    </div>
+                 </div>
+              </Section>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Modal Genérico (Produtos e Blog) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-3xl overflow-hidden animate-in zoom-in-95">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-md">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 border-b flex justify-between items-center bg-gray-50/50">
               <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">{editItem.id ? 'Editar Item' : 'Novo Item'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all"><X size={24} className="text-gray-300" /></button>
@@ -422,14 +502,13 @@ NOTIFY pgrst, 'reload schema';`}
                     <AdminInput label="Categoria" value={editItem.category} onChange={v => setEditItem({...editItem, category: v})} required />
                     <AdminInput label="Data Publicação" type="date" value={editItem.publish_date} onChange={v => setEditItem({...editItem, publish_date: v})} required />
                   </div>
-                  <AdminInput label="Autor" value={editItem.author || 'Sande Almeida'} onChange={v => setEditItem({...editItem, author: v})} />
                   <AdminInput label="Conteúdo (Markdown)" textarea value={editItem.content} onChange={v => setEditItem({...editItem, content: v})} required />
                   <ImageUp label="Imagem Capa" current={editItem.image_url} onUpload={e => handleImageUpload(e, 'image_url', 'modal')} />
                 </>
               )}
               <div className="pt-6">
                 <button type="submit" disabled={loading} className="w-full bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl flex items-center justify-center gap-2">
-                  {loading ? <Loader2 className="animate-spin" /> : <><Save size={24} /> SALVAR ALTERAÇÕES</>}
+                  {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />} SALVAR ALTERAÇÕES
                 </button>
               </div>
             </form>
@@ -437,87 +516,93 @@ NOTIFY pgrst, 'reload schema';`}
         </div>
       )}
 
-      {/* Detalhe do Lead */}
       {isLeadDetailOpen && selectedLead && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-3xl overflow-hidden animate-in zoom-in-95">
-             <div className="p-8 border-b flex justify-between items-center">
-                <h3 className="text-3xl font-black text-brand-dark uppercase tracking-tighter">{selectedLead.name}</h3>
-                <button onClick={() => setIsLeadDetailOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl"><X size={24} className="text-gray-300" /></button>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-md">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-3xl overflow-hidden max-h-[90vh] flex flex-col">
+             <div className="p-8 border-b flex justify-between items-center bg-gray-50">
+                <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">{selectedLead.name}</h3>
+                <button onClick={() => setIsLeadDetailOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all"><X size={24} className="text-gray-300" /></button>
              </div>
-             <div className="p-10 space-y-6">
-                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">{selectedLead.subject}</p>
-                <div className="bg-gray-50 p-6 rounded-2xl text-gray-700 italic">"{selectedLead.message}"</div>
-                
-                {selectedLead.value && (
-                  <div className="flex items-center gap-3 bg-brand-orange/10 p-4 rounded-2xl border border-brand-orange/20">
-                    <TrendingUp className="text-brand-orange" />
-                    <span className="font-black text-brand-dark">Valor do Lead: <span className="text-brand-orange">R$ {Number(selectedLead.value).toFixed(2)}</span></span>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                   {STATUS_OPTIONS.map(opt => (
-                     <button key={opt} onClick={() => updateLeadStatus(selectedLead.id, opt)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${selectedLead.status === opt ? 'bg-brand-purple text-white' : 'bg-white border text-gray-300'}`}>{opt}</button>
-                   ))}
+             <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar flex-grow">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <DetailRow icon={<Mail />} label="E-mail" value={selectedLead.email} />
+                  <DetailRow icon={<Phone />} label="WhatsApp" value={selectedLead.whatsapp} />
                 </div>
-                <div className="flex gap-4 pt-6">
-                   <a href={`https://wa.me/${selectedLead.whatsapp?.replace(/\D/g,'')}`} target="_blank" className="flex-grow bg-green-500 text-white py-4 rounded-2xl font-black text-center shadow-lg">WHATSAPP</a>
-                   <button onClick={() => deleteItem('leads', selectedLead.id)} className="bg-red-50 text-red-500 px-6 py-4 rounded-2xl hover:bg-red-500 hover:text-white transition-all"><Trash2 /></button>
+                <div className="space-y-4">
+                   <h4 className="font-black text-xs uppercase tracking-widest text-brand-purple">Status do Atendimento</h4>
+                   <div className="flex flex-wrap gap-2">
+                      {STATUS_OPTIONS.map(opt => (
+                        <button key={opt} onClick={() => updateLeadStatus(selectedLead.id, opt)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedLead.status === opt ? 'bg-brand-purple text-white shadow-lg' : 'bg-white border text-gray-400 hover:border-brand-purple'}`}>{opt}</button>
+                      ))}
+                   </div>
                 </div>
              </div>
           </div>
         </div>
       )}
 
-      {/* ESTILOS CUSTOMIZADOS PARA ROLAGEM SUAVE */}
       <style>{`
         .custom-scrollbar-h::-webkit-scrollbar { height: 10px; }
         .custom-scrollbar-h::-webkit-scrollbar-track { background: #F1F5F9; border-radius: 20px; }
         .custom-scrollbar-h::-webkit-scrollbar-thumb { background: #D8B4FE; border-radius: 20px; border: 2px solid #F1F5F9; }
-        .custom-scrollbar-h::-webkit-scrollbar-thumb:hover { background: #7E22CE; }
-        
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 20px; }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );
 };
 
 const Section = ({ title, icon, children }: any) => (
-  <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-gray-100">
-    <div className="flex items-center gap-4 mb-8 border-b pb-6">
-      <div className="bg-brand-lilac/10 p-3 rounded-2xl">{icon}</div>
-      <h3 className="text-xl font-black text-brand-dark uppercase tracking-tight">{title}</h3>
+  <div className="bg-white p-8 lg:p-12 rounded-[3.5rem] shadow-sm border border-gray-100">
+    <div className="flex items-center gap-4 mb-10 border-b border-gray-50 pb-8">
+      <div className="bg-brand-lilac/10 p-4 rounded-2xl shadow-inner">{icon}</div>
+      <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tight">{title}</h3>
     </div>
-    <div className="space-y-6">{children}</div>
+    <div className="space-y-8">{children}</div>
+  </div>
+);
+
+const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value?: string }) => (
+  <div className="flex items-center gap-4 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+    <div className="bg-white p-4 rounded-2xl text-brand-purple shrink-0 shadow-sm">{icon}</div>
+    <div>
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1.5">{label}</p>
+      <p className="font-bold text-brand-dark text-base break-all">{value || 'Não informado'}</p>
+    </div>
   </div>
 );
 
 const AdminInput = ({ label, value, onChange, textarea, type = "text", placeholder, required }: any) => (
   <div className="w-full">
-    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">{label} {required && '*'}</label>
+    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block pl-1">{label} {required && '*'}</label>
     {textarea ? (
-      <textarea rows={5} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full p-6 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-2xl font-bold text-brand-dark transition-all resize-none outline-none shadow-inner" />
+      <textarea rows={6} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full p-6 bg-gray-50/50 border-2 border-gray-100 focus:border-brand-purple focus:bg-white rounded-[2rem] font-bold text-brand-dark transition-all resize-none outline-none shadow-sm" />
     ) : (
-      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-xl font-bold text-brand-dark transition-all outline-none shadow-inner" />
+      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-8 py-5 bg-gray-50/50 border-2 border-gray-100 focus:border-brand-purple focus:bg-white rounded-2xl font-bold text-brand-dark transition-all outline-none shadow-sm" />
     )}
   </div>
 );
 
 const ImageUp = ({ label, current, onUpload }: any) => (
   <div className="space-y-3">
-    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">{label}</label>
-    <div className="border-2 border-dashed border-gray-100 rounded-3xl p-6 text-center hover:border-brand-purple transition-all relative overflow-hidden bg-gray-50/50 min-h-[160px] flex flex-col items-center justify-center gap-3">
+    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block pl-1">{label}</label>
+    <div className="border-2 border-dashed border-gray-200 rounded-[2.5rem] p-8 text-center hover:border-brand-purple hover:bg-white transition-all relative overflow-hidden bg-gray-50/50 min-h-[220px] flex flex-col items-center justify-center gap-4 group">
       {current ? (
-        <img src={current} className="max-h-24 rounded-xl shadow-md border-2 border-white" />
+        <div className="relative">
+          <img src={current} className="max-h-32 rounded-2xl shadow-xl border-4 border-white transition-transform group-hover:scale-105" />
+          <div className="absolute inset-0 bg-brand-dark/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <RefreshCcw className="text-white" />
+          </div>
+        </div>
       ) : (
-        <Upload className="text-gray-200" size={40} />
+        <div className="flex flex-col items-center gap-3">
+          <div className="p-5 bg-white rounded-full shadow-sm text-gray-300 group-hover:text-brand-purple transition-colors">
+            <Upload size={32} />
+          </div>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Arraste ou clique aqui</p>
+        </div>
       )}
-      <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">{current ? 'Substituir' : 'Enviar'}</p>
       <input type="file" accept="image/*" onChange={onUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
     </div>
   </div>

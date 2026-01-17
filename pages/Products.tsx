@@ -78,32 +78,37 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
     setPayingClub(true);
     
     try {
-      // 1. Criar Lead no CRM (Supabase)
+      // 1. CRM Inteligente (Upsert): Junta com card existente se e-mail coincidir
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
-        .insert([{
+        .upsert([{
           name: customerData.name,
           email: customerData.email,
           whatsapp: customerData.phone,
-          subject: `Interesse: Clube Protagonista`,
+          subject: `Clube: Interesse`,
           message: `Iniciou checkout para a Assinatura do Clube`,
           status: 'Aguardando Pagamento',
           product_id: 'CLUBE-ANUAL',
           product_name: content.clubetitle || 'Clube Professora Protagonista',
           value: Number(content.clubeprice),
+          cpf_cnpj: customerData.cpfCnpj,
+          postal_code: customerData.postalCode,
+          address: customerData.address,
+          address_number: customerData.addressNumber,
+          province: customerData.province,
+          city: customerData.city,
+          complement: customerData.complement,
           created_at: new Date().toISOString()
-        }])
+        }], { onConflict: 'email' })
         .select()
         .single();
 
-      if (leadError) console.error("Erro ao salvar lead do clube:", leadError);
+      if (leadError) throw new Error(`Erro ao salvar no CRM: ${leadError.message}`);
 
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
         const apiKey = content.asaas_use_sandbox ? content.asaas_sandbox_key : content.asaas_production_key;
 
-        if (!apiKey) {
-          throw new Error("API Key não encontrada.");
-        }
+        if (!apiKey) throw new Error("API Key não configurada.");
 
         const payload = {
           token: apiKey,
@@ -124,7 +129,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
             id: 'CLUBE-ANUAL',
             name: content.clubetitle || 'Clube Professora Protagonista',
             value: Number(content.clubeprice),
-            description: content.clubedescription || 'Assinatura anual de acesso ilimitado a todos os materiais.'
+            description: content.clubedescription || 'Assinatura anual de acesso ilimitado.'
           },
           type: 'SUBSCRIPTION',
           lead_id: leadData?.id,
@@ -144,16 +149,14 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
 
         const rawData = await response.json().catch(() => ({}));
         
-        if (!response.ok) {
-          throw new Error(rawData.message || `Erro do servidor (${response.status})`);
-        }
+        if (!response.ok) throw new Error(rawData.message || `Erro ${response.status}`);
 
         const checkoutUrl = findUrlInResponse(rawData);
 
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('Link de pagamento não retornado pelo servidor. Finalize pelo WhatsApp.');
+          throw new Error('Link não gerado. Tente via WhatsApp.');
         }
       } else {
         redirectToWhatsApp();
@@ -234,8 +237,8 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content }) => {
                   <BillingInput label="Nome Completo" icon={<User size={18}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
                 </div>
                 <BillingInput label="E-mail" icon={<Mail size={18}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
-                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
                 <BillingInput label="WhatsApp (DDD + Número)" icon={<Phone size={18}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={18}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
                 <BillingInput label="CEP (Só números)" icon={<MapPin size={18}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Endereço" icon={<MapPin size={18}/>} name="address" value={customerData.address} onChange={handleInputChange} required />

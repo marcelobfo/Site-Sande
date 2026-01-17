@@ -59,11 +59,11 @@ export interface SiteContent {
   aboutfeaturedimage1?: string;
   aboutfeaturedimage2?: string;
   aboutfeaturedimage3?: string;
-  // Integração Asaas (Arquitetura Segura)
+  // Integração Asaas
   asaas_production_key?: string;
   asaas_sandbox_key?: string;
   asaas_use_sandbox?: boolean;
-  asaas_backend_url?: string; // URL do n8n ou Backend que fará o POST para o Asaas
+  asaas_backend_url?: string;
   // Marketing & Analytics
   google_analytics_id?: string;
   meta_pixel_id?: string;
@@ -84,7 +84,14 @@ export interface Lead {
   product_name?: string;
   value?: number;
   payment_id?: string;
+  cpf_cnpj?: string;
+  postal_code?: string;
+  address?: string;
+  address_number?: string;
+  province?: string;
+  city?: string;
+  complement?: string;
   created_at: string;
 }
 
-export type View = 'home' | 'about' | 'products' | 'product-detail' | 'blog' | 'blog-post' | 'contact' | 'faq' | 'policies' | 'admin' | 'briefing' | 'thank-you';
+export type View = 'home' | 'about' | 'products' | 'product-detail' | 'blog' | 'blog-post' | 'contact' | 'faq' | 'policies' | 'refund' | 'privacy' | 'admin' | 'briefing' | 'thank-you' | 'login' | 'my-account';

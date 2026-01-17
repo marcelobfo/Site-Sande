@@ -94,25 +94,32 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     setPaying(true);
 
     try {
-      // 1. Criar Lead no CRM (Supabase) antes de chamar o webhook
+      // 1. Upsert no CRM (Supabase): Tenta atualizar por email, se não existir cria novo
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
-        .insert([{
+        .upsert([{
           name: customerData.name,
-          email: customerData.email,
+          email: customerData.email, // Chave de busca
           whatsapp: customerData.phone,
-          subject: `Interesse: ${product.title}`,
+          subject: `Checkout: ${product.title}`,
           message: `Iniciou checkout para o produto: ${product.title}`,
           status: 'Aguardando Pagamento',
           product_id: product.id,
           product_name: product.title,
           value: Number(product.price),
+          cpf_cnpj: customerData.cpfCnpj,
+          postal_code: customerData.postalCode,
+          address: customerData.address,
+          address_number: customerData.addressNumber,
+          province: customerData.province,
+          city: customerData.city,
+          complement: customerData.complement,
           created_at: new Date().toISOString()
-        }])
+        }], { onConflict: 'email' })
         .select()
         .single();
 
-      if (leadError) console.error("Erro ao salvar lead:", leadError);
+      if (leadError) throw new Error(`Falha ao registrar interesse no banco: ${leadError.message}`);
 
       // 2. Disparar Webhook para o n8n
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
@@ -141,12 +148,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
             id: product.id,
             name: product.title,
             value: Number(product.price),
-            description: product.description // Descrição incluída como solicitado
+            description: product.description
           },
           type: 'PRODUCT_SALE',
-          lead_id: leadData?.id, // Envia o ID do lead para o n8n poder atualizar depois
+          lead_id: leadData?.id,
           callback: {
-            successUrl: `${window.location.origin}/#thank-you` // Redirecionamento após aprovação
+            successUrl: `${window.location.origin}/#thank-you`
           }
         };
 
@@ -162,18 +169,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         const rawData = await response.json().catch(() => ({}));
         
         if (!response.ok) {
-          throw new Error(rawData.message || `Erro ${response.status}: Verifique se o n8n está online.`);
+          throw new Error(rawData.message || `Erro do servidor Asaas (${response.status})`);
         }
 
         const checkoutUrl = findUrlInResponse(rawData);
         
         if (checkoutUrl) {
+          // Atualiza o card com o ID do pagamento se o Asaas retornou algo
+          if (rawData.id) {
+             await supabase.from('leads').update({ payment_id: rawData.id }).eq('id', leadData.id);
+          }
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('Link não encontrado. Finalize pelo WhatsApp para garantir seu material.');
+          throw new Error('Link não encontrado. Finalize pelo WhatsApp.');
         }
       } else {
-        // Fallback se não houver backend configurado
         if (product.checkout_url) {
           window.open(product.checkout_url, '_blank');
         } else {
@@ -331,9 +341,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
                   className="w-full bg-brand-purple text-white py-5 md:py-6 rounded-2xl md:rounded-3xl font-black text-lg md:text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                   {paying ? (
-                    <><Loader2 className="animate-spin" /> GERANDO LINK...</>
+                    <><Loader2 className="animate-spin" /> PROCESSANDO...</>
                   ) : (
-                    <><ShoppingCart size={24}/> GERAR PAGAMENTO</>
+                    <><ShoppingCart size={24}/> IR PARA O PAGAMENTO</>
                   )}
                 </button>
               </div>
