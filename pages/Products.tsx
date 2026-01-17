@@ -69,7 +69,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
       return null;
     }
     if (typeof obj === 'object') {
-      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl', 'invoiceUrl'];
+      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl'];
       for (const key of priorityKeys) {
         if (obj[key] && typeof obj[key] === 'string' && obj[key].startsWith('http')) {
           return obj[key];
@@ -88,16 +88,18 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     setClubError(null);
     setPayingClub(true);
     
+    let createdLeadId: string | null = null;
+
     try {
-      // 1. CAPTURA DE LEAD (Supabase)
+      // 1. PERSISTÊNCIA INICIAL DO LEAD
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert([{
           name: customerData.name,
           email: customerData.email,
           whatsapp: customerData.phone,
-          subject: `Clube: Interesse`,
-          message: `Iniciou checkout para a Assinatura do Clube`,
+          subject: `Checkout Clube`,
+          message: `Iniciou processo de assinatura do Clube Protagonista.`,
           status: 'Aguardando Pagamento',
           product_id: 'CLUBE-ANUAL',
           product_name: content.clubetitle || 'Clube Professora Protagonista',
@@ -108,25 +110,21 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           address_number: customerData.addressNumber,
           province: customerData.province,
           city: customerData.city,
-          complement: customerData.complement,
+          complement: customerData.complement || '',
           created_at: new Date().toISOString()
         }])
         .select()
         .single();
 
-      if (leadError) {
-        console.error("Erro ao salvar lead do clube:", leadError);
-        if (leadError.message.includes('column')) {
-           throw new Error("Erro de Banco de Dados: Coluna 'whatsapp' ou campos de endereço ausentes na tabela 'leads'. Execute o SQL de atualização.");
-        }
-      }
+      if (leadError) throw new Error(`Falha ao registrar lead: ${leadError.message}`);
+      createdLeadId = leadData.id;
 
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
         const isSandbox = !!content.asaas_use_sandbox;
         const apiKey = isSandbox ? content.asaas_sandbox_key : content.asaas_production_key;
         const asaasBaseUrl = isSandbox ? 'https://api-sandbox.asaas.com/' : 'https://api.asaas.com/';
 
-        if (!apiKey) throw new Error(`API Key de ${isSandbox ? 'Sandbox' : 'Produção'} não configurada.`);
+        if (!apiKey) throw new Error("API Key do Asaas não configurada.");
 
         const payload = {
           token: apiKey,
@@ -151,7 +149,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
             description: content.clubedescription || 'Assinatura anual de acesso ilimitado.'
           },
           type: 'SUBSCRIPTION',
-          lead_id: leadData?.id,
+          lead_id: createdLeadId,
           callback: {
             successUrl: `${window.location.origin}/#thank-you`
           }
@@ -159,10 +157,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
 
         const response = await fetch(content.asaas_backend_url, {
           method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
@@ -170,13 +165,18 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
         if (!response.ok) throw new Error(rawData.message || `Erro ${response.status}`);
 
         const checkoutUrl = findUrlInResponse(rawData);
+        const asaasId = rawData.id || rawData.subscriptionId || rawData.paymentId || (rawData.data && rawData.data.id);
+
         if (checkoutUrl) {
-          if (rawData.id && leadData?.id) {
-             await supabase.from('leads').update({ payment_id: rawData.id }).eq('id', leadData.id);
+          if (asaasId && createdLeadId) {
+             await supabase.from('leads').update({ 
+               payment_id: asaasId,
+               message: `Link de assinatura gerado. ID Asaas: ${asaasId}`
+             }).eq('id', createdLeadId);
           }
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('Link de pagamento não gerado.');
+          throw new Error('Link de pagamento não gerado pelo servidor.');
         }
       } else {
         redirectToWhatsApp();
@@ -190,7 +190,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
   };
 
   const redirectToWhatsApp = () => {
-    const msg = `Olá! Quero assinar o *Clube Protagonista*. Nome: ${customerData.name || 'Pendente'}`;
+    const msg = `Olá! Quero assinar o *Clube Protagonista*. Já preenchi meus dados no site.`;
     window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 

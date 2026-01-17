@@ -73,7 +73,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
       return null;
     }
     if (typeof obj === 'object') {
-      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl', 'invoiceUrl'];
+      const priorityKeys = ['invoiceUrl', 'url', 'paymentLink', 'paymentUrl', 'checkoutUrl', 'bankInvoiceUrl'];
       for (const key of priorityKeys) {
         if (obj[key] && typeof obj[key] === 'string' && obj[key].startsWith('http')) {
           return obj[key];
@@ -93,17 +93,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     setErrorState({ message: '', type: null });
     setPaying(true);
 
+    let createdLeadId: string | null = null;
+
     try {
-      // 1. CAPTURA DE LEAD (Supabase) - Inserção explícita para o Kanban
-      // Usamos insert em vez de upsert para garantir a captura mesmo que o email já exista
+      // 1. PERSISTÊNCIA INICIAL DO LEAD (CRM/KANBAN)
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert([{
           name: customerData.name,
           email: customerData.email,
           whatsapp: customerData.phone,
-          subject: `Checkout: ${product.title}`,
-          message: `Iniciou checkout para o produto: ${product.title}`,
+          subject: `Iniciou Checkout`,
+          message: `O cliente preencheu os dados de faturamento para o produto: ${product.title}`,
           status: 'Aguardando Pagamento',
           product_id: product.id,
           product_name: product.title,
@@ -114,29 +115,25 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           address_number: customerData.addressNumber,
           province: customerData.province,
           city: customerData.city,
-          complement: customerData.complement,
+          complement: customerData.complement || '',
           created_at: new Date().toISOString()
         }])
         .select()
         .single();
 
       if (leadError) {
-        console.error("Erro ao salvar lead no Supabase:", leadError);
-        // Se o erro for de coluna, avisamos o admin
-        if (leadError.message.includes('column')) {
-          throw new Error("Erro de Banco de Dados: Coluna 'whatsapp' ou campos de endereço ausentes. Por favor, execute o SQL de atualização no Supabase.");
-        }
+        throw new Error(`Não foi possível salvar seus dados no CRM: ${leadError.message}. Verifique se a tabela leads possui as colunas necessárias.`);
       }
 
-      // 2. DISPARAR WEBHOOK (Asaas/n8n)
+      createdLeadId = leadData.id;
+
+      // 2. CHAMADA AO BACKEND (N8N/ASAAS)
       if (content.asaas_backend_url && content.asaas_backend_url.startsWith('http')) {
         const isSandbox = !!content.asaas_use_sandbox;
         const apiKey = isSandbox ? content.asaas_sandbox_key : content.asaas_production_key;
         const asaasBaseUrl = isSandbox ? 'https://api-sandbox.asaas.com/' : 'https://api.asaas.com/';
         
-        if (!apiKey) {
-          throw new Error(`Configuração incompleta: API Key do Asaas para ${isSandbox ? 'Sandbox' : 'Produção'} não encontrada.`);
-        }
+        if (!apiKey) throw new Error("Chave de API Asaas não configurada no painel admin.");
 
         const payload = {
           token: apiKey,
@@ -161,7 +158,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
             description: product.description
           },
           type: 'PRODUCT_SALE',
-          lead_id: leadData?.id,
+          lead_id: createdLeadId, // Vinculando o ID do Supabase para o Webhook saber quem atualizar depois
           callback: {
             successUrl: `${window.location.origin}/#thank-you`
           }
@@ -169,41 +166,40 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
         const response = await fetch(content.asaas_backend_url, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
         const rawData = await response.json().catch(() => ({}));
         
         if (!response.ok) {
-          throw new Error(rawData.message || `Erro do servidor Asaas (${response.status})`);
+          throw new Error(rawData.message || `Erro no gateway de pagamento (${response.status})`);
         }
 
+        // 3. CAPTURA DO ID DE PAGAMENTO E REDIRECIONAMENTO
         const checkoutUrl = findUrlInResponse(rawData);
-        
+        const asaasId = rawData.id || rawData.paymentId || rawData.subscriptionId || (rawData.data && rawData.data.id);
+
         if (checkoutUrl) {
-          if (rawData.id && leadData?.id) {
-             await supabase.from('leads').update({ payment_id: rawData.id }).eq('id', leadData.id);
+          // Atualiza o lead com o ID retornado pelo Asaas
+          if (asaasId && createdLeadId) {
+             await supabase.from('leads').update({ 
+               payment_id: asaasId,
+               message: `Link de pagamento gerado. ID Asaas: ${asaasId}`
+             }).eq('id', createdLeadId);
           }
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('Link de pagamento não retornado pelo servidor.');
+          throw new Error('O servidor não retornou um link de pagamento válido.');
         }
       } else {
-        // Fallback para Link Direto se não houver automação
-        if (product.checkout_url) {
-          window.open(product.checkout_url, '_blank');
-        } else {
-          redirectToWhatsApp();
-        }
+        // Fallback WhatsApp
+        redirectToWhatsApp();
       }
     } catch (err: any) {
       console.error('Checkout Error:', err);
       setErrorState({ message: err.message, type: 'api' });
-      if (notify) notify('error', 'Erro no Checkout', err.message);
+      if (notify) notify('error', 'Falha no Checkout', err.message);
     } finally {
       setPaying(false);
     }
@@ -211,7 +207,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
   const redirectToWhatsApp = () => {
     if (!product) return;
-    const msg = `Olá! Quero o material: *${product.title}*. Nome: ${customerData.name || 'Pendente'}`;
+    const msg = `Olá! Quero o material: *${product.title}*. Já preenchi meus dados no site.`;
     window.open(`https://wa.me/${content.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
