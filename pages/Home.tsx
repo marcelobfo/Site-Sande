@@ -55,7 +55,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
             
             <h1 className="hero-dynamic-title text-[2.6rem] sm:text-5xl md:text-6xl lg:text-5xl xl:text-[5.5rem] 2xl:text-[6.5rem] font-black leading-[0.9] xl:leading-[0.95] tracking-tighter uppercase italic break-words">
               Inspire.<br className="block"/>Inove.<br className="block"/>
-              <span className="text-brand-orange not-italic">Protagonize.</span>
+              {/* Ajuste: Tamanho relativo (0.75em) para garantir que a palavra maior caiba na linha */}
+              <span className="text-brand-orange not-italic whitespace-nowrap text-[0.75em] block leading-[1.1]">Protagonize.</span>
             </h1>
             
             <p className="text-sm md:text-lg lg:text-xl xl:text-2xl font-medium text-white/80 leading-relaxed max-w-xl mx-auto lg:mx-0 px-4 md:px-0">

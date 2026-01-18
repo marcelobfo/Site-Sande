@@ -80,7 +80,8 @@ const App: React.FC = () => {
     const fetchContent = async () => {
       try {
         const { data, error } = await supabase.from('site_content').select('*').eq('id', 1).maybeSingle();
-        if (data && !error) setContent(data);
+        // Merge com DEFAULT_CONTENT garante que campos novos (como homeherotitlesize) tenham valor mesmo se não existirem no DB
+        if (data && !error) setContent({ ...DEFAULT_CONTENT, ...data });
       } catch (err) {
         console.error('Erro ao carregar configurações:', err);
       }
@@ -118,7 +119,11 @@ const App: React.FC = () => {
       if (error) throw error;
       addNotification('success', 'Sucesso!', 'Configurações do site atualizadas.');
     } catch (err: any) {
-      addNotification('error', 'Erro ao salvar', err.message);
+      if (err.message?.includes("homeherotitlesize")) {
+        addNotification('error', 'Coluna Inexistente', 'Rode o script SQL no Supabase para criar a coluna "homeherotitlesize".');
+      } else {
+        addNotification('error', 'Erro ao salvar', err.message);
+      }
       throw err;
     }
   };

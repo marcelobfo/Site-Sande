@@ -1,16 +1,19 @@
+
 import React, { useState } from 'react';
 import { Send, Phone, Mail, Clock, Instagram, MessageCircle, Heart, CheckCircle2, Loader2, MapPin } from 'lucide-react';
 import { SiteContent, View } from '../types';
 import { supabase } from '../lib/supabase';
+import { NotificationType } from '../components/Notification';
 
 interface ContactProps {
   content: SiteContent;
   onNavigate?: (view: View) => void;
+  notify?: (type: NotificationType, title: string, message: string) => void;
 }
 
 const WEBHOOK_URL = 'https://atendimento-creditar-n8n.stpanz.easypanel.host/webhook/briefing';
 
-export const Contact: React.FC<ContactProps> = ({ content, onNavigate }) => {
+export const Contact: React.FC<ContactProps> = ({ content, onNavigate, notify }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -61,12 +64,21 @@ export const Contact: React.FC<ContactProps> = ({ content, onNavigate }) => {
       if (onNavigate) {
         onNavigate('thank-you');
       } else {
-        alert("Mensagem enviada com sucesso!");
+        if (notify) {
+          notify('success', 'Mensagem Enviada', 'Sua mensagem foi enviada com sucesso!');
+        } else {
+          alert("Mensagem enviada com sucesso!");
+        }
         setFormData({ name: '', email: '', whatsapp: '', subject: '', message: '' });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting lead:', err);
-      alert('Erro ao enviar mensagem. Certifique-se de que a coluna "whatsapp" existe na tabela "leads" do seu Supabase.');
+      const errorMessage = 'Erro ao enviar mensagem. Certifique-se de que a coluna "whatsapp" existe na tabela "leads" do seu Supabase.';
+      if (notify) {
+        notify('error', 'Erro no Envio', err.message || errorMessage);
+      } else {
+        alert(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

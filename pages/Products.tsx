@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown, CheckCircle2, ShieldCheck, Zap } from 'lucide-react';
 import { View, SiteContent, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -172,28 +173,77 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
 
   return (
     <div className="bg-brand-cream/30 pb-16 md:pb-24">
-      {/* Banner Clube */}
-      <section className="bg-brand-purple py-8 md:py-16 px-4 relative overflow-hidden">
-        <div className="max-w-6xl mx-auto bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/20">
-          <div className="md:w-1/2 relative min-h-[250px]">
-            <img src={content.clubebannerimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png"} className="absolute inset-0 w-full h-full object-cover" alt="Clube" />
-          </div>
-          <div className="md:w-1/2 p-6 md:p-10 lg:p-16 flex flex-col justify-center text-center md:text-left">
-            <h3 className="text-2xl md:text-3xl font-black text-brand-dark mb-4 leading-tight">{content.clubetitle || "Clube Protagonista"}</h3>
-            <p className="text-gray-500 text-sm md:text-base mb-6 leading-relaxed font-medium">
-              Assinando o clube você leva TODOS os nossos produtos atuais e atualizações futuras.
-            </p>
-            <div className="flex items-baseline justify-center md:justify-start gap-3 mb-6">
-              <span className="text-3xl md:text-4xl font-black text-brand-purple">R$ {content.clubeprice}</span>
-              <span className="text-gray-400 font-bold text-sm">/anual</span>
+      {/* Banner Clube Premium Redesigned */}
+      <section className="bg-white pt-8 pb-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-brand-dark rounded-[2.5rem] md:rounded-[4rem] overflow-hidden shadow-3xl relative grid grid-cols-1 lg:grid-cols-2">
+            
+            {/* Background Decorations */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-purple/20 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-brand-orange/10 rounded-full blur-[80px] -ml-20 -mb-20 pointer-events-none"></div>
+
+            {/* Image Side */}
+            <div className="relative h-[300px] lg:h-auto min-h-[400px] order-2 lg:order-1">
+              <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-transparent to-transparent z-10 lg:bg-gradient-to-r"></div>
+              <img 
+                src={content.clubebannerimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png"} 
+                className="absolute inset-0 w-full h-full object-cover object-center lg:object-right transform hover:scale-105 transition-transform duration-[2s]" 
+                alt="Clube" 
+              />
+              <div className="absolute top-6 left-6 z-20 bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                <Star size={12} className="text-brand-orange" fill="currentColor" /> Recomendado
+              </div>
             </div>
 
-            <button 
-              onClick={() => setShowClubBillingForm(true)} 
-              className="bg-brand-orange text-white px-8 py-4 rounded-xl font-black text-lg shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3"
-            >
-              LIBERAR ACESSO <ArrowRight size={20} />
-            </button>
+            {/* Content Side */}
+            <div className="relative z-20 p-8 md:p-12 lg:p-16 flex flex-col justify-center text-white order-1 lg:order-2">
+              <div className="w-14 h-14 bg-brand-orange rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl shadow-orange-900/20">
+                <Gem size={28} />
+              </div>
+              
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-[0.9] mb-4">
+                Clube Professora <br/>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-lilac to-white">Protagonista</span>
+              </h2>
+
+              <p className="text-gray-300 font-medium text-sm md:text-base leading-relaxed mb-8 max-w-md">
+                A solução definitiva para sua carreira. Acesso ilimitado a todos os materiais, atualizações semanais e suporte exclusivo.
+              </p>
+
+              <div className="space-y-4 mb-10">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-500/20 p-1 rounded-full"><Check size={14} className="text-green-400" /></div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-200">Acesso a Todos os Materiais (+300)</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-500/20 p-1 rounded-full"><Check size={14} className="text-green-400" /></div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-200">Novidades Toda Semana</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-500/20 p-1 rounded-full"><Check size={14} className="text-green-400" /></div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-200">Aulas de Edição no Canva</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="text-center sm:text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 line-through">De R$ 697,00</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-bold text-brand-orange">R$</span>
+                    <span className="text-4xl lg:text-5xl font-black text-white">{Number(content.clubeprice).toFixed(0)}</span>
+                    <span className="text-sm font-bold text-gray-400">/ano</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowClubBillingForm(true)} 
+                  className="w-full sm:w-auto flex-grow bg-brand-orange text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-3 group"
+                >
+                  Assinar Agora <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -248,13 +298,16 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
       )}
 
       {/* Vitrine de Materiais */}
-      <section className="max-w-7xl mx-auto px-4 mt-12 md:mt-20">
+      <section className="max-w-7xl mx-auto px-4 mt-8 md:mt-12">
         <div className="text-center mb-8 md:mb-12">
+          <div className="inline-flex items-center gap-2 bg-brand-purple/5 text-brand-purple px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
+             <LayoutGrid size={14} /> Loja Oficial
+          </div>
           <h2 className="text-3xl md:text-5xl font-black text-brand-dark uppercase tracking-tighter leading-none mb-3">
-            Vitrine de Materiais
+            Materiais Avulsos
           </h2>
-          <p className="text-gray-500 font-medium text-sm md:text-base">
-            Recursos exclusivos para sua sala de aula.
+          <p className="text-gray-500 font-medium text-sm md:text-base max-w-xl mx-auto">
+            Recursos exclusivos para sua sala de aula, prontos para editar e aplicar.
           </p>
         </div>
         
@@ -309,24 +362,34 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10" : "max-w-4xl mx-auto space-y-4"}>
             {filteredProducts.map(product => (
               viewMode === 'grid' ? (
-                <div key={product.id} className="group bg-white rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-lg border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
-                  <div className="relative aspect-square overflow-hidden">
-                    <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
+                <div key={product.id} className="group bg-white rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-lg border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
+                  <div className="relative aspect-square overflow-hidden p-2">
+                    <div className="w-full h-full rounded-[1.8rem] overflow-hidden relative">
+                      <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
+                      <div className="absolute top-3 left-3 bg-brand-purple/90 backdrop-blur-md text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20">
+                        {product.category}
+                      </div>
+                    </div>
                   </div>
                   <div className="p-6 md:p-8 flex-grow flex flex-col">
                     <h3 className="text-lg md:text-xl font-black text-brand-dark mb-4 leading-tight group-hover:text-brand-purple transition-colors line-clamp-2">{product.title}</h3>
-                    <p className="text-xl font-black text-brand-purple mb-6">R$ {Number(product.price).toFixed(2)}</p>
-                    <button className="mt-auto w-full bg-gray-50 text-brand-purple py-4 rounded-xl font-black text-xs uppercase group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={16} /></button>
+                    <div className="flex items-center gap-3 mt-auto">
+                       <p className="text-xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
+                       {product.old_price && <span className="text-xs text-gray-300 font-bold line-through">R$ {Number(product.old_price).toFixed(2)}</span>}
+                    </div>
+                    <button className="mt-4 w-full bg-gray-50 text-brand-purple py-4 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={16} /></button>
                   </div>
                 </div>
               ) : (
-                <div key={product.id} className="group bg-white p-4 md:p-6 rounded-[1.5rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-4 md:gap-6 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
-                  <img src={product.image_url} className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover shrink-0" alt="" />
+                <div key={product.id} className="group bg-white p-4 md:p-6 rounded-[2rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-4 md:gap-6 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
+                  <img src={product.image_url} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shrink-0" alt="" />
                   <div className="flex-grow min-w-0">
                     <h3 className="text-sm md:text-lg font-black text-brand-dark truncate group-hover:text-brand-purple transition-colors">{product.title}</h3>
                     <p className="text-xs font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
                   </div>
-                  <ArrowRight className="text-gray-200 group-hover:text-brand-orange transition-colors" />
+                  <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center group-hover:bg-brand-orange group-hover:text-white transition-all">
+                     <ArrowRight size={18} />
+                  </div>
                 </div>
               )
             ))}

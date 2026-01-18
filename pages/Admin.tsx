@@ -39,7 +39,8 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
 
   useEffect(() => {
     fetchAllData();
-    setForm(content);
+    // Garante valor default caso venha nulo do DB
+    setForm({ ...content, homeherotitlesize: content.homeherotitlesize ?? 6.5 });
   }, [content, activeTab]);
 
   const fetchAllData = async () => {

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, User, FileText, Phone, MapPin, Mail, ArrowRight, AlertCircle, MessageCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, User, FileText, Phone, MapPin, Mail, ArrowRight, AlertCircle, MessageCircle, Star } from 'lucide-react';
 import { Product, View, SiteContent, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -176,61 +177,82 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
   if (loading || !product) return null;
 
   return (
-    <div className="bg-brand-cream/30 pb-12 pt-4 min-h-screen">
+    <div className="bg-brand-cream/30 pb-12 pt-8 min-h-screen">
       <div className="max-w-7xl mx-auto px-4">
         <button 
           onClick={() => onNavigate('products')} 
-          className="group flex items-center gap-2 text-brand-purple font-black mb-6 hover:translate-x-[-4px] transition-all text-[11px] uppercase tracking-widest"
+          className="group flex items-center gap-2 text-brand-purple font-black mb-8 hover:translate-x-[-4px] transition-all text-[11px] uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-sm w-fit"
         >
           <ArrowLeft size={14} /> VOLTAR PARA A LOJA
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div className="lg:sticky lg:top-24 max-w-sm mx-auto lg:max-w-none w-full">
-            <img 
-              src={product.image_url} 
-              className="w-full rounded-[1.5rem] md:rounded-[2rem] shadow-xl border-4 border-white aspect-square object-cover" 
-              alt={product.title} 
-            />
-          </div>
-
-          <div className="flex flex-col text-center lg:text-left">
-            <div className="bg-brand-purple/10 text-brand-purple px-3 py-1 rounded-full inline-block w-fit text-[9px] font-black uppercase tracking-widest mb-3 mx-auto lg:mx-0">
-              {product.category}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-start">
+          {/* Coluna da Imagem */}
+          <div className="lg:sticky lg:top-24 w-full">
+            <div className="bg-white p-3 rounded-[2.5rem] shadow-3xl border border-white relative">
+              <img 
+                src={product.image_url} 
+                className="w-full rounded-[2rem] aspect-square object-cover" 
+                alt={product.title} 
+              />
+              <div className="absolute top-8 left-8 bg-brand-orange text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
+                {product.category}
+              </div>
             </div>
             
-            <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-brand-dark mb-4 tracking-tighter leading-tight uppercase">
+            <div className="mt-8 flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+              <div className="flex-shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-brand-lilac/10 flex items-center gap-3">
+                 <div className="bg-brand-purple/10 p-2 rounded-lg text-brand-purple"><CheckCircle2 size={16} /></div>
+                 <span className="text-xs font-black text-gray-500 uppercase tracking-wide">Qualidade HD</span>
+              </div>
+              <div className="flex-shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-brand-lilac/10 flex items-center gap-3">
+                 <div className="bg-brand-purple/10 p-2 rounded-lg text-brand-purple"><Zap size={16} /></div>
+                 <span className="text-xs font-black text-gray-500 uppercase tracking-wide">Entrega Imediata</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Coluna de Conteúdo */}
+          <div className="flex flex-col">
+            <div className="mb-2">
+               <div className="flex items-center gap-1">
+                 {[1,2,3,4,5].map(i => <Star key={i} size={14} className="text-brand-orange" fill="currentColor" />)}
+                 <span className="text-xs font-bold text-gray-400 ml-2">(Produto Oficial)</span>
+               </div>
+            </div>
+            
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-brand-dark mb-6 tracking-tighter leading-[1.1] uppercase">
               {product.title}
             </h1>
             
-            <div className="h-1 w-12 bg-brand-orange rounded-full mb-6 mx-auto lg:mx-0"></div>
-            
-            <p className="text-sm md:text-base text-gray-500 font-medium mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
-              {product.description}
-            </p>
+            <div className="prose prose-purple text-gray-500 font-medium leading-relaxed mb-10 max-w-xl">
+               {product.description}
+            </div>
 
-            <div className="bg-white p-6 md:p-8 rounded-[1.5rem] shadow-2xl border border-brand-lilac/10">
-              <div className="mb-6">
-                {product.old_price && (
-                  <p className="text-xs text-gray-300 line-through mb-1 font-bold">De R$ {Number(product.old_price).toFixed(2)}</p>
-                )}
-                <div className="flex items-baseline justify-center lg:justify-start gap-2">
-                  <span className="text-[9px] font-black text-brand-purple uppercase">Apenas</span>
-                  <p className="text-3xl md:text-5xl font-black text-brand-purple tracking-tighter">
+            <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-brand-lilac/10 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-brand-purple/5 rounded-full -mr-16 -mt-16 group-hover:bg-brand-purple/10 transition-colors"></div>
+              
+              <div className="mb-8 relative z-10">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor do Investimento</p>
+                <div className="flex items-baseline gap-3">
+                  <p className="text-5xl md:text-6xl font-black text-brand-purple tracking-tighter">
                     R$ {Number(product.price).toFixed(2)}
                   </p>
+                  {product.old_price && (
+                    <p className="text-lg text-gray-300 line-through font-bold">R$ {Number(product.old_price).toFixed(2)}</p>
+                  )}
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 relative z-10">
                 <button 
                   onClick={() => setShowBillingForm(true)}
-                  className="w-full bg-brand-orange text-white py-4 md:py-5 rounded-xl font-black text-lg shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3"
+                  className="w-full bg-brand-orange text-white py-5 md:py-6 rounded-2xl font-black text-lg md:text-xl shadow-xl hover:bg-brand-dark hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
                 >
-                  <ShoppingCart size={20} /> COMPRAR AGORA
+                  <ShoppingCart size={24} /> COMPRAR AGORA
                 </button>
-                <p className="text-gray-400 text-[8px] md:text-[9px] font-bold text-center flex items-center justify-center gap-1.5 uppercase tracking-widest">
-                  <ShieldCheck size={12} className="text-green-500" /> Checkout Seguro Asaas
+                <p className="text-gray-400 text-[9px] font-bold text-center flex items-center justify-center gap-1.5 uppercase tracking-widest">
+                  <ShieldCheck size={14} className="text-green-500" /> Pagamento 100% Seguro
                 </p>
               </div>
             </div>
