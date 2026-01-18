@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Star, Zap, ArrowRight, Sparkles, Quote, Circle, CheckCircle2, ShoppingCart, Calendar, User, ArrowUpRight, ShieldCheck, Gem } from 'lucide-react';
 import { View, SiteContent, Product, BlogPost } from '../types';
@@ -11,6 +12,7 @@ interface HomeProps {
 export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
+  const [heroImageLoaded, setHeroImageLoaded] = useState(false);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -23,8 +25,19 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
     fetchData();
   }, []);
 
+  const heroImageUrl = content.homeheroimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png";
+
   return (
-    <div className="space-y-16 md:space-y-24 lg:space-y-32 pb-20 md:pb-32 overflow-x-hidden">
+    <div className="pb-20 md:pb-32 overflow-x-hidden">
+      {/* Dynamic Style for Hero Title size on Desktop */}
+      <style>{`
+        @media (min-width: 1280px) {
+          .hero-dynamic-title {
+            font-size: ${content.homeherotitlesize || 6.5}rem !important;
+          }
+        }
+      `}</style>
+
       {/* Hero Section - Optimized for all screens */}
       <section className="relative min-h-[90vh] lg:min-h-[85vh] xl:min-h-[80vh] flex flex-col justify-end bg-brand-dark overflow-hidden px-4 pt-10 md:pt-16">
         <div className="absolute top-10 left-10 text-brand-pink/20 animate-pulse hidden md:block">
@@ -40,7 +53,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
               <Sparkles size={14} className="text-brand-orange" /> Método Protagonizar
             </div>
             
-            <h1 className="text-[2.6rem] sm:text-5xl md:text-6xl lg:text-5xl xl:text-[5.5rem] 2xl:text-[6.5rem] font-black leading-[0.9] xl:leading-[0.95] tracking-tighter uppercase italic break-words">
+            <h1 className="hero-dynamic-title text-[2.6rem] sm:text-5xl md:text-6xl lg:text-5xl xl:text-[5.5rem] 2xl:text-[6.5rem] font-black leading-[0.9] xl:leading-[0.95] tracking-tighter uppercase italic break-words">
               Inspire.<br className="block"/>Inove.<br className="block"/>
               <span className="text-brand-orange not-italic">Protagonize.</span>
             </h1>
@@ -56,24 +69,34 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
             </div>
           </div>
 
-          {/* Image Column */}
-          <div className="relative flex justify-center lg:justify-end items-end self-end w-full overflow-visible">
+          {/* Image Column - Optimized for instant loading feel */}
+          <div className="relative flex justify-center lg:justify-end items-end self-end w-full overflow-visible min-h-[300px] md:min-h-[500px]">
+            {/* Background Effects */}
             <div className="absolute bottom-0 w-full h-[40%] bg-gradient-to-t from-brand-dark to-transparent z-20 pointer-events-none md:hidden"></div>
             <div className="absolute bottom-0 right-0 lg:right-0 w-[110%] h-[80%] bg-brand-purple/20 rounded-t-full blur-[80px] -z-10"></div>
             
+            {/* Loading Placeholder */}
+            {!heroImageLoaded && (
+              <div className="absolute inset-0 flex items-end justify-center lg:justify-end lg:translate-x-16 z-0">
+                <div className="w-[80%] lg:w-[100%] aspect-[3/4] bg-brand-purple/10 rounded-t-[5rem] animate-pulse blur-sm"></div>
+              </div>
+            )}
+
             <img 
-              src={content.homeheroimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png"} 
-              className="relative z-10 max-w-[120%] sm:max-w-[90%] md:max-w-[80%] lg:max-w-none lg:w-[130%] h-auto drop-shadow-[0_0_30px_rgba(0,0,0,0.5)] block mb-0 lg:translate-x-16 origin-bottom transform-gpu align-bottom" 
+              src={heroImageUrl} 
+              onLoad={() => setHeroImageLoaded(true)}
+              className={`relative z-10 max-w-[120%] sm:max-w-[90%] md:max-w-[80%] lg:max-w-none lg:w-[130%] h-auto drop-shadow-[0_0_30px_rgba(0,0,0,0.5)] block mb-0 lg:translate-x-16 origin-bottom transform-gpu align-bottom transition-opacity duration-700 ease-out ${heroImageLoaded ? 'opacity-100' : 'opacity-0'}`} 
               alt="Sande Almeida"
               fetchPriority="high"
               loading="eager"
+              decoding="async"
             />
           </div>
         </div>
       </section>
 
       {/* Featured Products Showcase */}
-      <section className="max-w-7xl mx-auto px-4">
+      <section className="max-w-7xl mx-auto px-4 mt-16 md:mt-24 lg:mt-32">
         <div className="flex flex-col lg:flex-row items-center lg:items-end justify-between mb-10 md:mb-16 gap-6 text-center lg:text-left">
           <div className="max-w-2xl">
             <h2 className="text-3xl md:text-5xl lg:text-6xl font-black text-brand-dark leading-tight md:leading-none tracking-tighter uppercase mb-4 md:mb-6">Destaques da <br className="hidden md:block"/><span className="text-brand-purple italic">Vitrine</span></h2>
@@ -107,7 +130,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
       </section>
 
       {/* Clube CTA */}
-      <section className="max-w-7xl mx-auto px-4">
+      <section className="max-w-7xl mx-auto px-4 mt-16 md:mt-24 lg:mt-32">
         <div className="bg-brand-purple rounded-[2rem] md:rounded-[4rem] lg:rounded-[5rem] p-8 md:p-12 lg:p-20 text-white text-center relative overflow-hidden shadow-3xl">
           <div className="absolute top-0 right-0 w-64 h-64 md:w-96 md:h-96 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32 md:-mr-48 md:-mt-48"></div>
           
@@ -151,7 +174,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
       </section>
 
       {/* Recent Blog Posts */}
-      <section className="bg-brand-cream/50 py-16 md:py-24 lg:py-32">
+      <section className="bg-brand-cream/50 py-16 md:py-24 lg:py-32 mt-16 md:mt-24 lg:mt-32">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-10 md:mb-16 lg:mb-20 space-y-4 md:space-y-6">
             <h2 className="text-3xl md:text-5xl lg:text-6xl font-black text-brand-dark uppercase tracking-tighter">Nosso Blog de <span className="text-brand-orange italic">Inovação</span></h2>

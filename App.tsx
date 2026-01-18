@@ -27,6 +27,7 @@ import { supabase } from './lib/supabase';
 const DEFAULT_CONTENT: SiteContent = {
   homeherotitle: 'Inspire. Inove. Protagonize.',
   homeherosub: 'Descubra o poder de transformar suas aulas com criatividade, metodologias ativas e um toque de propósito.',
+  homeherotitlesize: 6.5,
   clubetitle: 'Clube Professora Protagonista',
   clubedescription: 'O clube de assinatura definitivo para professoras que buscam inovar sem perder tempo com planejamentos exaustivos.',
   clubeprice: 397,

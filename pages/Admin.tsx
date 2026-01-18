@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Settings, Save, Home as HomeIcon, CreditCard, LayoutDashboard, Plus, 
-  FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon
+  FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type
 } from 'lucide-react';
 import { SiteContent, Product, BlogPost, View } from '../types';
 import { supabase } from '../lib/supabase';
@@ -125,6 +125,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <AdminInput label="Título Hero" value={form.homeherotitle} onChange={(v: string) => setForm({...form, homeherotitle: v})} />
+                <AdminInput label="Tamanho da Fonte (REM) - Desktop" type="number" step="0.1" icon={<Type size={16}/>} value={form.homeherotitlesize} onChange={(v: string) => setForm({...form, homeherotitlesize: Number(v)})} />
                 <AdminInput label="Subtítulo Hero" textarea value={form.homeherosub} onChange={(v: string) => setForm({...form, homeherosub: v})} />
               </div>
               <ImageUp label="Foto Hero" current={form.homeheroimageurl} onUpload={(e: any) => handleImageUpload(e, 'homeheroimageurl')} />

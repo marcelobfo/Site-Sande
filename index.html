@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -5,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Professora Protagonista | Sande Almeida</title>
     
-    <!-- Preload da imagem principal para carregamento instantâneo -->
-    <link rel="preload" as="image" href="https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png">
+    <!-- Preload Crítico: Imagem do Hero -->
+    <link rel="preload" as="image" href="https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png" fetchpriority="high">
     
     <!-- Tailwind Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -54,6 +55,10 @@
     <style>
         body { font-family: 'Montserrat', sans-serif; background-color: #FFFBEB; margin: 0; padding: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* Otimização de Performance de Renderização */
+        img { content-visibility: auto; }
+        .hero-img { content-visibility: visible; }
     </style>
 
     <!-- Importmap Unificado (React 19.0.0 estável) -->

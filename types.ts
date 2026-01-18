@@ -40,6 +40,7 @@ export interface BlogPost {
 export interface SiteContent {
   homeherotitle: string;
   homeherosub: string;
+  homeherotitlesize?: number; // Tamanho da fonte em REM
   homeheroimageurl?: string;
   homeherobgimageurl?: string;
   homemethodimageurl?: string;
