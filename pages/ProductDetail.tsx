@@ -68,7 +68,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
     let createdLeadId: string | null = null;
 
     try {
-      // 1. PERSISTÊNCIA INICIAL DO LEAD (Captura os dados do formulário)
+      // 1. SALVAR LEAD INICIAL (Captura dados do formulário)
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert([{
@@ -76,7 +76,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           email: customerData.email,
           whatsapp: customerData.phone,
           subject: `Checkout: ${product.title}`,
-          message: `Iniciou processo de compra. Valor: R$ ${product.price}`,
+          message: `Iniciou checkout. Aguardando retorno do link.`,
           status: 'Aguardando Pagamento',
           product_id: product.id,
           product_name: product.title,
@@ -96,16 +96,34 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
       if (leadError) throw new Error(`Erro ao salvar no CRM: ${leadError.message}`);
       createdLeadId = leadData.id;
 
-      // 2. CHAMADA AO GATEWAY (N8N/ASAAS)
+      // 2. CHAMADA AO GATEWAY (Enviando asaas_base_url e dados completos)
       if (content.asaas_backend_url) {
         const isSandbox = !!content.asaas_use_sandbox;
         const apiKey = isSandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+        const asaasBaseUrl = isSandbox ? 'https://api-sandbox.asaas.com/' : 'https://api.asaas.com/';
         
         const payload = {
           token: apiKey,
           environment: isSandbox ? 'sandbox' : 'production',
-          customer: { ...customerData, mobilePhone: customerData.phone.replace(/\D/g, '') },
-          product: { id: product.id, name: product.title, value: Number(product.price) },
+          asaas_base_url: asaasBaseUrl, // Enviando a base da URL conforme solicitado
+          customer: { 
+            name: customerData.name,
+            email: customerData.email,
+            cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
+            mobilePhone: customerData.phone.replace(/\D/g, ''),
+            address: customerData.address,
+            addressNumber: customerData.addressNumber,
+            postalCode: customerData.postalCode.replace(/\D/g, ''),
+            province: customerData.province,
+            city: customerData.city,
+            complement: customerData.complement
+          },
+          product: { 
+            id: product.id, 
+            name: product.title, 
+            value: Number(product.price),
+            description: product.description 
+          },
           lead_id: createdLeadId
         };
 
@@ -117,22 +135,23 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
         const rawData = await response.json().catch(() => ({}));
         
-        // TRATAMENTO DO RETORNO (Suporta Objeto Único ou Array)
+        // TRATAMENTO DO RETORNO (Captura dados do primeiro item se vier em Array)
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
-        const asaasId = asaasData?.id || asaasData?.paymentId;
-        const checkoutUrl = asaasData?.url || asaasData?.invoiceUrl || asaasData?.checkoutUrl;
+        const asaasId = asaasData?.id;
+        const checkoutUrl = asaasData?.url;
 
         if (checkoutUrl) {
-          // 3. POPULA O BANCO COM OS DADOS DE RETORNO (ID da compra e Link)
+          // 3. ATUALIZA O LEAD COM O ID E O LINK GERADO
           if (createdLeadId) {
              await supabase.from('leads').update({ 
                payment_id: asaasId,
-               message: `Link gerado: ${checkoutUrl}. ID Asaas: ${asaasId}`
+               message: `Link Gerado: ${checkoutUrl}. ID Gateway: ${asaasId}`
              }).eq('id', createdLeadId);
           }
+          // Redireciona o usuário
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('O Gateway não retornou um link de pagamento válido.');
+          throw new Error('O servidor não retornou a URL de pagamento.');
         }
       } else {
         redirectToWhatsApp();
@@ -157,20 +176,20 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
   if (loading || !product) return null;
 
   return (
-    <div className="bg-brand-cream/30 pb-12 md:pb-16 pt-4 md:pt-6 min-h-screen">
+    <div className="bg-brand-cream/30 pb-12 pt-4 min-h-screen">
       <div className="max-w-7xl mx-auto px-4">
         <button 
           onClick={() => onNavigate('products')} 
-          className="group flex items-center gap-2 text-brand-purple font-black mb-6 hover:translate-x-[-4px] transition-all text-xs"
+          className="group flex items-center gap-2 text-brand-purple font-black mb-6 hover:translate-x-[-4px] transition-all text-[11px] uppercase tracking-widest"
         >
           <ArrowLeft size={14} /> VOLTAR PARA A LOJA
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div className="lg:sticky lg:top-24 max-w-md mx-auto lg:max-w-none w-full">
+          <div className="lg:sticky lg:top-24 max-w-sm mx-auto lg:max-w-none w-full">
             <img 
               src={product.image_url} 
-              className="w-full rounded-[1.5rem] md:rounded-[2.5rem] shadow-xl border-4 border-white aspect-square object-cover" 
+              className="w-full rounded-[1.5rem] md:rounded-[2rem] shadow-xl border-4 border-white aspect-square object-cover" 
               alt={product.title} 
             />
           </div>
@@ -180,7 +199,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
               {product.category}
             </div>
             
-            {/* Fontes reduzidas para Notebook */}
             <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-brand-dark mb-4 tracking-tighter leading-tight uppercase">
               {product.title}
             </h1>
@@ -191,10 +209,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
               {product.description}
             </p>
 
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl border border-brand-lilac/10">
+            <div className="bg-white p-6 md:p-8 rounded-[1.5rem] shadow-2xl border border-brand-lilac/10">
               <div className="mb-6">
                 {product.old_price && (
-                  <p className="text-sm text-gray-300 line-through mb-1 font-bold">De R$ {Number(product.old_price).toFixed(2)}</p>
+                  <p className="text-xs text-gray-300 line-through mb-1 font-bold">De R$ {Number(product.old_price).toFixed(2)}</p>
                 )}
                 <div className="flex items-baseline justify-center lg:justify-start gap-2">
                   <span className="text-[9px] font-black text-brand-purple uppercase">Apenas</span>
@@ -207,7 +225,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
               <div className="space-y-4">
                 <button 
                   onClick={() => setShowBillingForm(true)}
-                  className="w-full bg-brand-orange text-white py-4 md:py-5 rounded-xl md:rounded-2xl font-black text-lg md:text-xl shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3"
+                  className="w-full bg-brand-orange text-white py-4 md:py-5 rounded-xl font-black text-lg shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-3"
                 >
                   <ShoppingCart size={20} /> COMPRAR AGORA
                 </button>
@@ -224,8 +242,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
           <div className="bg-white w-full max-w-4xl rounded-[2rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
             <div className="p-4 md:p-6 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-base md:text-lg font-black text-brand-dark uppercase tracking-tighter">Finalizar Compra</h3>
-              <button onClick={() => setShowBillingForm(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-all">
+              <h3 className="text-base font-black text-brand-dark uppercase tracking-tighter">Dados do Pedido</h3>
+              <button onClick={() => { setShowBillingForm(false); setErrorState({ message: '', type: null }); }} className="p-2 hover:bg-gray-100 rounded-xl transition-all">
                 <X size={20} className="text-gray-300" />
               </button>
             </div>
@@ -243,9 +261,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
                   <BillingInput label="Nome Completo" icon={<User size={16}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
                 </div>
                 <BillingInput label="E-mail" icon={<Mail size={16}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
-                <BillingInput label="WhatsApp" icon={<Phone size={16}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
-                <BillingInput label="CPF ou CNPJ" icon={<FileText size={16}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
-                <BillingInput label="CEP" icon={<MapPin size={16}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
+                <BillingInput label="WhatsApp (DDD + Número)" icon={<Phone size={16}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={16}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
+                <BillingInput label="CEP (Só números)" icon={<MapPin size={16}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Endereço" icon={<MapPin size={16}/>} name="address" value={customerData.address} onChange={handleInputChange} required />
                 </div>

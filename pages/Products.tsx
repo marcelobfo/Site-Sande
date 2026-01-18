@@ -63,7 +63,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     let createdLeadId: string | null = null;
 
     try {
-      // 1. PERSISTÊNCIA INICIAL
+      // 1. SALVAR LEAD
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert([{
@@ -94,12 +94,29 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
       if (content.asaas_backend_url) {
         const isSandbox = !!content.asaas_use_sandbox;
         const apiKey = isSandbox ? content.asaas_sandbox_key : content.asaas_production_key;
+        const asaasBaseUrl = isSandbox ? 'https://api-sandbox.asaas.com/' : 'https://api.asaas.com/';
 
         const payload = {
           token: apiKey,
           environment: isSandbox ? 'sandbox' : 'production',
-          customer: { ...customerData, mobilePhone: customerData.phone.replace(/\D/g, '') },
-          product: { id: 'CLUBE-ANUAL', name: content.clubetitle || 'Clube', value: Number(content.clubeprice) },
+          asaas_base_url: asaasBaseUrl,
+          customer: { 
+            name: customerData.name,
+            email: customerData.email,
+            cpfCnpj: customerData.cpfCnpj.replace(/\D/g, ''),
+            mobilePhone: customerData.phone.replace(/\D/g, ''),
+            address: customerData.address,
+            addressNumber: customerData.addressNumber,
+            postalCode: customerData.postalCode.replace(/\D/g, ''),
+            province: customerData.province,
+            city: customerData.city,
+            complement: customerData.complement
+          },
+          product: { 
+            id: 'CLUBE-ANUAL', 
+            name: content.clubetitle || 'Clube', 
+            value: Number(content.clubeprice) 
+          },
           type: 'SUBSCRIPTION',
           lead_id: createdLeadId
         };
@@ -114,14 +131,14 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
         if (!response.ok) throw new Error(rawData.message || `Erro ${response.status}`);
 
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
-        const asaasId = asaasData?.id || asaasData?.subscriptionId;
-        const checkoutUrl = asaasData?.url || asaasData?.checkoutUrl;
+        const asaasId = asaasData?.id;
+        const checkoutUrl = asaasData?.url;
 
         if (checkoutUrl) {
           if (createdLeadId) {
              await supabase.from('leads').update({ 
                payment_id: asaasId,
-               message: `Link Clube gerado: ${checkoutUrl}`
+               message: `Link Clube gerado: ${checkoutUrl}. ID Gateway: ${asaasId}`
              }).eq('id', createdLeadId);
           }
           window.location.href = checkoutUrl;
@@ -157,12 +174,12 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     <div className="bg-brand-cream/30 pb-16 md:pb-24">
       {/* Banner Clube */}
       <section className="bg-brand-purple py-8 md:py-16 px-4 relative overflow-hidden">
-        <div className="max-w-6xl mx-auto bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/20">
+        <div className="max-w-6xl mx-auto bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10 border border-white/20">
           <div className="md:w-1/2 relative min-h-[250px]">
             <img src={content.clubebannerimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png"} className="absolute inset-0 w-full h-full object-cover" alt="Clube" />
           </div>
           <div className="md:w-1/2 p-6 md:p-10 lg:p-16 flex flex-col justify-center text-center md:text-left">
-            <h3 className="text-2xl md:text-4xl font-black text-brand-dark mb-4 leading-tight">{content.clubetitle || "Clube Protagonista"}</h3>
+            <h3 className="text-2xl md:text-3xl font-black text-brand-dark mb-4 leading-tight">{content.clubetitle || "Clube Protagonista"}</h3>
             <p className="text-gray-500 text-sm md:text-base mb-6 leading-relaxed font-medium">
               Assinando o clube você leva TODOS os nossos produtos atuais e atualizações futuras.
             </p>
@@ -204,9 +221,9 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
                   <BillingInput label="Nome Completo" icon={<User size={16}/>} name="name" value={customerData.name} onChange={handleInputChange} required />
                 </div>
                 <BillingInput label="E-mail" icon={<Mail size={16}/>} name="email" type="email" value={customerData.email} onChange={handleInputChange} required />
-                <BillingInput label="WhatsApp" icon={<Phone size={16}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
-                <BillingInput label="CPF ou CNPJ" icon={<FileText size={16}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
-                <BillingInput label="CEP" icon={<MapPin size={16}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
+                <BillingInput label="WhatsApp (DDD + Número)" icon={<Phone size={16}/>} name="phone" value={customerData.phone} onChange={handleInputChange} required />
+                <BillingInput label="CPF ou CNPJ (Só números)" icon={<FileText size={16}/>} name="cpfCnpj" value={customerData.cpfCnpj} onChange={handleInputChange} required />
+                <BillingInput label="CEP (Só números)" icon={<MapPin size={16}/>} name="postalCode" value={customerData.postalCode} onChange={handleInputChange} required />
                 <div className="col-span-1 md:col-span-2">
                   <BillingInput label="Endereço" icon={<MapPin size={16}/>} name="address" value={customerData.address} onChange={handleInputChange} required />
                 </div>
@@ -292,7 +309,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10" : "max-w-4xl mx-auto space-y-4"}>
             {filteredProducts.map(product => (
               viewMode === 'grid' ? (
-                <div key={product.id} className="group bg-white rounded-[2rem] overflow-hidden shadow-lg border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
+                <div key={product.id} className="group bg-white rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-lg border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
                   <div className="relative aspect-square overflow-hidden">
                     <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
                   </div>
