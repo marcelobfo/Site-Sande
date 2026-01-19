@@ -148,24 +148,24 @@ export const Contact: React.FC<ContactProps> = ({ content, onNavigate, notify })
               <h3 className="text-3xl font-black mb-10 tracking-tight">Atendimento Direto</h3>
               <div className="space-y-10">
                 <div className="flex items-start gap-6 group cursor-pointer" onClick={() => window.open(`https://wa.me/${content.supportwhatsapp}`, '_blank')}>
-                  <div className="bg-white/10 p-4 rounded-2xl text-brand-orange group-hover:bg-brand-orange group-hover:text-white transition-all"><MessageCircle size={32} /></div>
-                  <div>
+                  <div className="bg-white/10 p-4 rounded-2xl text-brand-orange group-hover:bg-brand-orange group-hover:text-white transition-all shrink-0"><MessageCircle size={32} /></div>
+                  <div className="min-w-0">
                     <h5 className="font-black text-xl mb-1 tracking-tight">WhatsApp de Suporte</h5>
                     <p className="text-gray-400 font-bold text-lg">{content.supportwhatsapp || "(33) 99987-2505"}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-6">
-                  <div className="bg-white/10 p-4 rounded-2xl text-brand-orange"><Mail size={32} /></div>
-                  <div>
+                  <div className="bg-white/10 p-4 rounded-2xl text-brand-orange shrink-0"><Mail size={32} /></div>
+                  <div className="min-w-0">
                     <h5 className="font-black text-xl mb-1 tracking-tight">E-mail Institucional</h5>
-                    <p className="text-gray-400 font-bold text-lg">{content.supportemail || "contato@metodoprotagonizar.com.br"}</p>
+                    <p className="text-gray-400 font-bold text-base md:text-lg break-all">{content.supportemail || "contato@metodoprotagonizar.com.br"}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-6">
-                  <div className="bg-white/10 p-4 rounded-2xl text-brand-orange"><Clock size={32} /></div>
-                  <div>
+                  <div className="bg-white/10 p-4 rounded-2xl text-brand-orange shrink-0"><Clock size={32} /></div>
+                  <div className="min-w-0">
                     <h5 className="font-black text-xl mb-1 tracking-tight">Horário de Atendimento</h5>
                     <p className="text-gray-400 font-bold">Segunda a Sexta: 08h às 18h</p>
                   </div>
