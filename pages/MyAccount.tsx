@@ -60,10 +60,12 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (products) setAllProducts(products);
 
+    // Ordenar leads por data de criação (descendente) ajuda, mas a lógica de prioridade é mais segura
     const { data: leads } = await supabase
       .from('leads')
       .select('*')
-      .eq('email', user.email);
+      .eq('email', user.email)
+      .order('created_at', { ascending: false });
 
     if (leads) setUserLeads(leads);
     
@@ -199,15 +201,31 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     }
   };
 
-  // Separação dos Produtos
+  // Helper para determinar o status do produto com base em múltiplos leads
+  const getProductStatus = (productId: string): { status: 'unlocked' | 'pending' | 'locked', lead: Lead | undefined } => {
+    const leadsForProduct = userLeads.filter(l => l.product_id === productId);
+    
+    // 1. Tenta achar status pago/fechado
+    const paidLead = leadsForProduct.find(l => l.status === 'Pago' || l.status === 'Fechado');
+    if (paidLead) return { status: 'unlocked', lead: paidLead };
+    
+    // 2. Tenta achar status aguardando
+    const pendingLead = leadsForProduct.find(l => l.status === 'Aguardando Pagamento');
+    if (pendingLead) return { status: 'pending', lead: pendingLead };
+    
+    // 3. Bloqueado
+    return { status: 'locked', lead: undefined };
+  };
+
+  // Separação dos Produtos usando a lógica de prioridade
   const myProducts = allProducts.filter(p => {
-    const lead = userLeads.find(l => l.product_id === p.id && ['Pago', 'Fechado', 'Aguardando Pagamento'].includes(l.status));
-    return !!lead;
+    const { status } = getProductStatus(p.id);
+    return status === 'unlocked' || status === 'pending';
   });
 
   const availableProducts = allProducts.filter(p => {
-    const lead = userLeads.find(l => l.product_id === p.id && ['Pago', 'Fechado', 'Aguardando Pagamento'].includes(l.status));
-    return !lead;
+    const { status } = getProductStatus(p.id);
+    return status === 'locked';
   });
 
   if (loading) return (
@@ -260,9 +278,9 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
           {myProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {myProducts.map(product => {
-                const userLead = userLeads.find(lead => lead.product_id === product.id && ['Pago', 'Fechado', 'Aguardando Pagamento'].includes(lead.status));
-                const isUnlocked = userLead && (userLead.status === 'Pago' || userLead.status === 'Fechado');
-                const isPending = userLead && userLead.status === 'Aguardando Pagamento';
+                const { status, lead: userLead } = getProductStatus(product.id);
+                const isUnlocked = status === 'unlocked';
+                const isPending = status === 'pending';
                 const hasMultipleMaterials = product.materials && product.materials.length > 0;
 
                 return (
