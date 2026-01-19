@@ -1,16 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X } from 'lucide-react';
+import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle } from 'lucide-react';
 import { View, Lead, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface MyAccountProps {
   onNavigate: (view: View) => void;
   user: any;
-  content?: any; // Recebendo content para configurações de pagamento (opcional, mas recomendado passar via App.tsx se disponível)
+  content?: any;
 }
 
-// Componente de Input para o Modal de Pagamento
 const BillingInput = ({ label, icon, required, ...props }: any) => (
   <div className="w-full">
     <label className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">{label} {required && '*'}</label>
@@ -55,15 +54,12 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     if (!user) return;
     setIsSyncing(true);
     
-    // 1. Buscar Configurações do Site (para chaves de pagamento)
     const { data: config } = await supabase.from('site_content').select('*').eq('id', 1).single();
     if (config) setSiteConfig(config);
 
-    // 2. Buscar TODOS os produtos (Vitrine completa)
     const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (products) setAllProducts(products);
 
-    // 3. Buscar as compras do usuário
     const { data: leads } = await supabase
       .from('leads')
       .select('*')
@@ -90,7 +86,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Lógica de Compra Rápida (Cópia da lógica do ProductDetail)
   const handleUnlockProduct = (product: Product) => {
     setSelectedProduct(product);
     setShowBilling(true);
@@ -107,7 +102,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     setCheckoutError(null);
 
     try {
-      // 1. Criar Lead
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert([{
@@ -133,7 +127,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
       if (leadError) throw new Error(leadError.message);
 
-      // 2. Chamar Gateway (Se configurado)
       if (siteConfig.asaas_backend_url) {
         const isSandbox = !!siteConfig.asaas_use_sandbox;
         const apiKey = isSandbox ? siteConfig.asaas_sandbox_key : siteConfig.asaas_production_key;
@@ -170,14 +163,12 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
 
         if (asaasData?.url) {
-           // Atualiza lead com ID do pagamento
            await supabase.from('leads').update({ payment_id: asaasData.id }).eq('id', leadData.id);
            window.location.href = asaasData.url;
         } else {
            throw new Error('Erro ao gerar link de pagamento.');
         }
       } else {
-        // Fallback WhatsApp
         const msg = `Olá! Quero destravar o material: *${selectedProduct.title}* direto pelo portal.`;
         window.open(`https://wa.me/${siteConfig.supportwhatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
       }
@@ -208,13 +199,21 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     }
   };
 
+  // Separação dos Produtos
+  const myProducts = allProducts.filter(p => {
+    const lead = userLeads.find(l => l.product_id === p.id && ['Pago', 'Fechado', 'Aguardando Pagamento'].includes(l.status));
+    return !!lead;
+  });
+
+  const availableProducts = allProducts.filter(p => {
+    const lead = userLeads.find(l => l.product_id === p.id && ['Pago', 'Fechado', 'Aguardando Pagamento'].includes(l.status));
+    return !lead;
+  });
+
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-cream/30">
       <div className="relative">
         <Loader2 className="animate-spin text-brand-purple mb-4" size={64} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Sparkles className="text-brand-orange animate-pulse" size={24} />
-        </div>
       </div>
       <p className="font-black text-brand-dark uppercase tracking-widest text-xs mt-4">Carregando Biblioteca...</p>
     </div>
@@ -222,7 +221,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
   return (
     <div className="bg-brand-cream/30 min-h-screen pb-32">
-      {/* Header */}
       <section className="bg-brand-dark pt-16 pb-32 text-white px-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-brand-purple/10 rounded-full blur-[100px] -mr-48 -mt-48"></div>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
@@ -234,11 +232,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
             <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase">Minha <span className="text-brand-orange">Biblioteca</span></h1>
             <div className="flex items-center gap-4 mt-2">
                <p className="text-gray-400 font-medium">Olá, {user.email.split('@')[0]}.</p>
-               {isSyncing && (
-                 <span className="flex items-center gap-2 text-[10px] font-black text-brand-orange animate-pulse uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                   <RefreshCcw size={12} className="animate-spin" /> Sincronizando
-                 </span>
-               )}
             </div>
           </div>
           <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-4 backdrop-blur-md">
@@ -253,127 +246,146 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 -mt-12">
-        {/* GRID ESTILO NETFLIX */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {allProducts.map(product => {
-            // Verificar status do produto para este usuário
-            const userLead = userLeads.find(lead => lead.product_id === product.id && (lead.status !== 'Cancelado' && lead.status !== 'Perdido'));
-            const isUnlocked = userLead && (userLead.status === 'Pago' || userLead.status === 'Fechado');
-            const isPending = userLead && userLead.status === 'Aguardando Pagamento';
-            const isLocked = !userLead; // Não comprou ainda
+      <div className="max-w-7xl mx-auto px-4 -mt-12 space-y-16">
+        
+        {/* SEÇÃO 1: MEUS MATERIAIS (COMPRADOS) */}
+        <div>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="bg-green-500 text-white p-3 rounded-2xl shadow-lg shadow-green-200">
+              <Package size={24} />
+            </div>
+            <h2 className="text-2xl font-black text-brand-dark uppercase tracking-tight">Meus Materiais</h2>
+          </div>
 
-            const hasMultipleMaterials = product.materials && product.materials.length > 0;
+          {myProducts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {myProducts.map(product => {
+                const userLead = userLeads.find(lead => lead.product_id === product.id && ['Pago', 'Fechado', 'Aguardando Pagamento'].includes(lead.status));
+                const isUnlocked = userLead && (userLead.status === 'Pago' || userLead.status === 'Fechado');
+                const isPending = userLead && userLead.status === 'Aguardando Pagamento';
+                const hasMultipleMaterials = product.materials && product.materials.length > 0;
 
-            return (
-              <div key={product.id} className={`bg-white rounded-[3rem] shadow-xl overflow-hidden border transition-all relative flex flex-col h-full group ${isLocked ? 'grayscale-[0.8] hover:grayscale-0 border-gray-200' : 'border-brand-lilac/10 hover:shadow-2xl'}`}>
-                
-                {/* Visual Lock Overlay for Locked Items */}
-                {isLocked && (
-                  <div className="absolute inset-0 bg-brand-dark/60 z-10 flex flex-col items-center justify-center text-white backdrop-blur-[1px] opacity-100 group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
-                    <div className="bg-brand-orange p-4 rounded-full shadow-2xl mb-4">
-                      <Lock size={32} />
-                    </div>
-                    <p className="font-black uppercase tracking-widest text-sm">Conteúdo Bloqueado</p>
-                    <p className="text-xs font-medium mt-1 opacity-80">Clique para liberar acesso</p>
-                  </div>
-                )}
+                return (
+                  <div key={product.id} className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-green-100 hover:shadow-2xl transition-all flex flex-col">
+                    <div className="p-8 md:p-10 space-y-6 flex-grow flex flex-col">
+                      <div className="flex justify-between items-start">
+                        <div className={`p-4 rounded-2xl ${isUnlocked ? 'bg-green-50 text-green-600' : 'bg-brand-orange/10 text-brand-orange'}`}>
+                          {isUnlocked ? <CheckCircle2 size={32} /> : <Clock size={32} />}
+                        </div>
+                        <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${isUnlocked ? 'bg-green-500 text-white border-green-600' : 'bg-brand-orange text-white border-brand-orange'}`}>
+                          {isUnlocked ? 'LIBERADO' : 'PROCESSANDO'}
+                        </div>
+                      </div>
 
-                <div className="p-8 md:p-10 space-y-6 flex-grow flex flex-col relative z-0">
-                  <div className="flex justify-between items-start">
-                    <div className={`p-4 rounded-2xl transition-colors ${isUnlocked ? 'bg-green-50 text-green-600' : isPending ? 'bg-brand-orange/10 text-brand-orange' : 'bg-gray-100 text-gray-400'}`}>
-                      {isUnlocked ? <CheckCircle2 size={32} /> : isPending ? <Clock size={32} /> : <Lock size={32} />}
-                    </div>
-                    
-                    <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${
-                      isUnlocked ? 'bg-green-500 text-white border-green-600' : 
-                      isPending ? 'bg-brand-orange text-white border-brand-orange' : 
-                      'bg-gray-200 text-gray-500 border-gray-300'
-                    }`}>
-                      {isUnlocked ? 'LIBERADO' : isPending ? 'PROCESSANDO' : 'BLOQUEADO'}
-                    </div>
-                  </div>
+                      <div className="flex-grow">
+                        <h3 className="text-2xl font-black text-brand-dark leading-tight line-clamp-2 min-h-[4rem]">
+                          {product.title}
+                        </h3>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">
+                          {product.category}
+                        </p>
+                      </div>
 
-                  <div className="flex-grow">
-                    {/* Imagem do Produto Pequena se Bloqueado, ou escondida se quiser */}
-                    <h3 className="text-2xl font-black text-brand-dark leading-tight line-clamp-2 min-h-[4rem] group-hover:text-brand-purple transition-colors">
-                      {product.title}
-                    </h3>
-                    <div className="flex items-center gap-4 mt-2">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Package size={12} /> {product.category}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-gray-50 mt-auto">
-                    {isUnlocked ? (
-                      // CONTEÚDO LIBERADO
-                      <div className="space-y-4">
-                        {hasMultipleMaterials ? (
-                          <>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-brand-purple mb-2">Materiais Disponíveis</p>
+                      <div className="pt-6 border-t border-gray-50 mt-auto">
+                        {isUnlocked ? (
+                          hasMultipleMaterials ? (
                             <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                               {product.materials?.map((mat, idx) => (
-                                <button 
-                                  key={idx}
-                                  onClick={() => openMaterial(mat.url)}
-                                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-brand-lilac/10 rounded-xl border border-gray-100 transition-all group/item text-left"
-                                >
+                                <button key={idx} onClick={() => openMaterial(mat.url)} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50 rounded-xl border border-gray-100 transition-all text-left group">
                                   <div className="flex items-center gap-3">
                                     <div className="bg-white p-2 rounded-lg shadow-sm">{getMaterialIcon(mat.type)}</div>
-                                    <span className="text-xs font-bold text-gray-600 group-hover/item:text-brand-purple truncate max-w-[120px]">{mat.title}</span>
+                                    <span className="text-xs font-bold text-gray-600 group-hover:text-green-600 truncate max-w-[120px]">{mat.title}</span>
                                   </div>
-                                  <ExternalLink size={12} className="text-gray-300 group-hover/item:text-brand-purple" />
+                                  <ExternalLink size={12} className="text-gray-300 group-hover:text-green-500" />
                                 </button>
                               ))}
                             </div>
-                          </>
+                          ) : (
+                            <button onClick={() => handleDownload(userLead!, product)} className="w-full bg-green-500 text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:bg-green-600 transition-all flex items-center justify-center gap-3">
+                              <Download size={18} /> BAIXAR MATERIAL
+                            </button>
+                          )
                         ) : (
-                          <button 
-                            onClick={() => handleDownload(userLead!, product)}
-                            className="w-full bg-brand-purple text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:bg-brand-dark transition-all flex items-center justify-center gap-3 group/btn"
-                          >
-                            <Download size={18} className="group-hover/btn:translate-y-1 transition-transform" /> 
-                            {product.download_url ? 'BAIXAR MATERIAL' : 'AGUARDANDO LINK'}
-                          </button>
+                          <div className="text-center">
+                             <p className="text-[11px] font-bold text-gray-500 mb-3">Pagamento em análise.</p>
+                             <button onClick={() => window.open(`https://wa.me/5533999872505?text=Pagamento pendente: ${product.title}`, '_blank')} className="w-full border-2 border-brand-orange text-brand-orange py-3 rounded-xl font-black text-[10px] uppercase hover:bg-brand-orange hover:text-white transition-all">
+                               Precisa de ajuda?
+                             </button>
+                          </div>
                         )}
                       </div>
-                    ) : isPending ? (
-                      // PENDENTE
-                      <div className="space-y-3">
-                         <p className="text-[11px] font-bold text-gray-500 leading-relaxed text-center">Pagamento em análise. O acesso será liberado automaticamente.</p>
-                         <button 
-                          onClick={() => window.open(`https://wa.me/5533999872505?text=Pagamento pendente: ${product.title}`, '_blank')}
-                          className="w-full border-2 border-brand-orange text-brand-orange py-3 rounded-xl font-black text-[10px] uppercase hover:bg-brand-orange hover:text-white transition-all"
-                         >
-                           Precisa de ajuda?
-                         </button>
-                      </div>
-                    ) : (
-                      // BLOQUEADO (COMPRAR AGORA)
-                      <div className="space-y-4">
-                         <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-400 uppercase">Investimento</span>
-                            <span className="text-xl font-black text-brand-dark">R$ {Number(product.price).toFixed(2)}</span>
-                         </div>
-                         <button 
-                          onClick={() => handleUnlockProduct(product)}
-                          className="w-full bg-brand-orange text-white py-4 rounded-2xl font-black text-sm shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-2 group/lock"
-                         >
-                           <ShoppingCart size={18} /> DESTRANCAR AGORA
-                         </button>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          ) : (
+             <div className="bg-white p-12 rounded-[3rem] text-center border-2 border-dashed border-gray-200">
+               <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
+                 <Package size={32} />
+               </div>
+               <h3 className="text-xl font-black text-gray-400 uppercase">Sua biblioteca está vazia</h3>
+               <p className="text-gray-400 font-medium mt-2">Explore a vitrine abaixo para adquirir seus primeiros materiais.</p>
+             </div>
+          )}
         </div>
 
-        {/* Banner Clube */}
-        <div className="mt-20 p-12 bg-brand-dark rounded-[4rem] flex flex-col md:flex-row items-center justify-between gap-8 text-white relative overflow-hidden shadow-3xl">
+        {/* SEÇÃO 2: VITRINE DE OPORTUNIDADES (BLOQUEADOS) */}
+        {availableProducts.length > 0 && (
+          <div>
+            <div className="flex items-center gap-4 mb-8 pt-8 border-t border-brand-lilac/10">
+              <div className="bg-brand-purple text-white p-3 rounded-2xl shadow-lg shadow-purple-200">
+                <LayoutGrid size={24} />
+              </div>
+              <div>
+                 <h2 className="text-2xl font-black text-brand-dark uppercase tracking-tight">Complete sua Coleção</h2>
+                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Materiais Disponíveis na Loja</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {availableProducts.map(product => (
+                <div key={product.id} className="bg-white rounded-[3rem] shadow-md border border-gray-200 transition-all flex flex-col h-full group grayscale-[0.5] hover:grayscale-0 hover:shadow-2xl hover:border-brand-lilac/30">
+                  {/* Lock Overlay */}
+                  <div className="relative p-8 md:p-10 space-y-6 flex-grow flex flex-col">
+                    <div className="absolute top-6 right-6 z-20">
+                      <div className="bg-gray-100 p-2 rounded-full text-gray-400 group-hover:bg-brand-orange group-hover:text-white transition-all shadow-sm">
+                        <Lock size={20} />
+                      </div>
+                    </div>
+
+                    <div className="flex-grow">
+                      <h3 className="text-2xl font-black text-brand-dark leading-tight line-clamp-2 min-h-[4rem] group-hover:text-brand-purple transition-colors">
+                        {product.title}
+                      </h3>
+                      <div className="flex items-center gap-4 mt-2">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                          <Package size={12} /> {product.category}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-gray-50 mt-auto space-y-4">
+                       <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-400 uppercase">Investimento</span>
+                          <span className="text-xl font-black text-brand-dark">R$ {Number(product.price).toFixed(2)}</span>
+                       </div>
+                       <button 
+                        onClick={() => handleUnlockProduct(product)}
+                        className="w-full bg-brand-orange text-white py-4 rounded-2xl font-black text-sm shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-2 group/lock"
+                       >
+                         <ShoppingCart size={18} /> DESTRANCAR AGORA
+                       </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Banner Clube Upsell */}
+        <div className="p-12 bg-brand-dark rounded-[4rem] flex flex-col md:flex-row items-center justify-between gap-8 text-white relative overflow-hidden shadow-3xl">
            <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-32 -mt-32"></div>
            <div className="flex items-center gap-6 text-center md:text-left relative z-10">
               <div className="bg-brand-orange p-4 rounded-full text-white shadow-xl animate-pulse">
@@ -390,7 +402,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         </div>
       </div>
 
-      {/* Modal de Checkout Rápido */}
+      {/* Modal de Checkout */}
       {showBilling && selectedProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
