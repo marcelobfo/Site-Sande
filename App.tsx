@@ -36,6 +36,15 @@ const DEFAULT_CONTENT: SiteContent = {
   asaas_use_sandbox: true
 };
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as any).message);
+  }
+  return 'Erro desconhecido ao processar solicitação';
+};
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('home');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -119,10 +128,11 @@ const App: React.FC = () => {
       if (error) throw error;
       addNotification('success', 'Sucesso!', 'Configurações do site atualizadas.');
     } catch (err: any) {
-      if (err.message?.includes("homeherotitlesize")) {
+      const message = getErrorMessage(err);
+      if (message.includes("homeherotitlesize")) {
         addNotification('error', 'Coluna Inexistente', 'Rode o script SQL no Supabase para criar a coluna "homeherotitlesize".');
       } else {
-        addNotification('error', 'Erro ao salvar', err.message);
+        addNotification('error', 'Erro ao salvar', message);
       }
       throw err;
     }

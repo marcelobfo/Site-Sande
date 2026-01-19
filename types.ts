@@ -1,4 +1,11 @@
 
+export interface ProductMaterial {
+  id: string;
+  title: string;
+  type: 'video' | 'file' | 'link' | 'drive';
+  url: string;
+}
+
 export interface Product {
   id: string;
   title: string;
@@ -7,7 +14,8 @@ export interface Product {
   description: string;
   category: string;
   image_url: string;
-  download_url?: string; // Novo campo para o arquivo/link de entrega
+  download_url?: string; // Mantido para compatibilidade
+  materials?: ProductMaterial[]; // Novo campo para múltiplos links
   checkout_url?: string;
   features?: string[];
   created_at?: string;

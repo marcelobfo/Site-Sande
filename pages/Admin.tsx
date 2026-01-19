@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Settings, Save, Home as HomeIcon, CreditCard, LayoutDashboard, Plus, 
-  FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type
+  FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type,
+  Youtube, HardDrive, Trash2
 } from 'lucide-react';
-import { SiteContent, Product, BlogPost, View } from '../types';
+import { SiteContent, Product, BlogPost, View, ProductMaterial } from '../types';
 import { supabase } from '../lib/supabase';
 import { NotificationType } from '../components/Notification';
 
@@ -25,6 +26,15 @@ interface AdminProps {
 
 type Tab = 'leads' | 'content_home' | 'content_about' | 'manage_store' | 'manage_blog' | 'settings' | 'payments';
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as any).message);
+  }
+  return 'Erro desconhecido ao processar solicitação';
+};
+
 export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, notify }) => {
   const [activeTab, setActiveTab] = useState<Tab>('leads');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
@@ -39,7 +49,6 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
 
   useEffect(() => {
     fetchAllData();
-    // Garante valor default caso venha nulo do DB
     setForm({ ...content, homeherotitlesize: content.homeherotitlesize ?? 6.5 });
   }, [content, activeTab]);
 
@@ -68,7 +77,9 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
     setSavingSettings(true);
     try {
       await onUpdate(form);
-    } catch (err) {} 
+    } catch (err) {
+      // Erro tratado no App.tsx
+    } 
     finally { setSavingSettings(false); }
   };
 
@@ -89,21 +100,73 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
     e.preventDefault();
     setLoading(true);
     const table = activeTab === 'manage_store' ? 'products' : 'blog_posts';
+    
     try {
-      if (editItem.id) {
-        await supabase.from(table).update(editItem).eq('id', editItem.id);
-        notify('success', 'Atualizado', 'Registro salvo.');
+      // CONSTRUÇÃO MANUAL DO PAYLOAD (Evita erros de envio de campos extras e garante envio de materials)
+      const payload: any = {
+        title: editItem.title,
+        category: editItem.category,
+        image_url: editItem.image_url,
+      };
+
+      if (table === 'products') {
+        payload.price = editItem.price;
+        payload.description = editItem.description;
+        payload.download_url = editItem.download_url;
+        // IMPORTANTE: Garante que materials seja enviado como array (JSONB)
+        payload.materials = editItem.materials && Array.isArray(editItem.materials) ? editItem.materials : [];
       } else {
-        await supabase.from(table).insert([editItem]);
+        payload.content = editItem.content;
+        payload.publish_date = editItem.publish_date;
+      }
+
+      if (editItem.id) {
+        const { error } = await supabase.from(table).update(payload).eq('id', editItem.id);
+        if (error) throw error;
+        notify('success', 'Atualizado', 'Registro salvo com sucesso.');
+      } else {
+        const { error } = await supabase.from(table).insert([payload]);
+        if (error) throw error;
         notify('success', 'Criado', 'Novo item adicionado.');
       }
-      fetchAllData();
+      
+      await fetchAllData();
       setIsModalOpen(false);
     } catch (err: any) {
-      notify('error', 'Erro', err.message);
+      console.error(err);
+      const message = getErrorMessage(err);
+      
+      if (message.includes('column "materials" of relation "products" does not exist') || message.includes('download_url')) {
+         notify('error', 'Banco de Dados Desatualizado', 'Colunas "materials" ou "download_url" faltando. Rode o script SQL no Supabase.');
+      } else {
+         notify('error', 'Erro ao salvar', message);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Funções para gerenciar materiais dentro do modal de produtos
+  const addMaterial = () => {
+    const newMaterial: ProductMaterial = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: '',
+      type: 'link',
+      url: ''
+    };
+    setEditItem({ ...editItem, materials: [...(editItem.materials || []), newMaterial] });
+  };
+
+  const updateMaterial = (index: number, field: keyof ProductMaterial, value: string) => {
+    const newMaterials = [...(editItem.materials || [])];
+    newMaterials[index] = { ...newMaterials[index], [field]: value };
+    setEditItem({ ...editItem, materials: newMaterials });
+  };
+
+  const removeMaterial = (index: number) => {
+    const newMaterials = [...(editItem.materials || [])];
+    newMaterials.splice(index, 1);
+    setEditItem({ ...editItem, materials: newMaterials });
   };
 
   const SidebarItem = ({ id, icon, label }: { id: Tab, icon: React.ReactNode, label: string }) => (
@@ -224,8 +287,56 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <AdminInput label="Título" value={editItem.title} onChange={(v: string) => setEditItem({...editItem, title: v})} required />
-                    <AdminInput label="URL Entrega" icon={<LinkIcon size={14}/>} value={editItem.download_url} onChange={(v: string) => setEditItem({...editItem, download_url: v})} />
+                    <AdminInput label="URL Entrega Padrão (Fallback)" icon={<LinkIcon size={14}/>} value={editItem.download_url} onChange={(v: string) => setEditItem({...editItem, download_url: v})} />
                   </div>
+
+                  {/* Gerenciamento de Múltiplos Materiais */}
+                  <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
+                    <div className="flex justify-between items-center mb-6">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Links e Materiais do Curso</label>
+                      <button type="button" onClick={addMaterial} className="bg-brand-purple text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-brand-dark transition-all">
+                        <Plus size={14} /> Adicionar Link
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {editItem.materials?.map((mat: ProductMaterial, idx: number) => (
+                        <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                          <div className="w-full md:w-32 shrink-0">
+                            <select 
+                              value={mat.type} 
+                              onChange={(e) => updateMaterial(idx, 'type', e.target.value as any)}
+                              className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold text-gray-900 border border-gray-200 outline-none focus:border-brand-purple"
+                            >
+                              <option value="link">Link Geral</option>
+                              <option value="video">Vídeo (YT)</option>
+                              <option value="drive">Google Drive</option>
+                              <option value="file">Arquivo</option>
+                            </select>
+                          </div>
+                          <input 
+                            placeholder="Título (Ex: Aula 1)" 
+                            value={mat.title || ''} 
+                            onChange={(e) => updateMaterial(idx, 'title', e.target.value)}
+                            className="flex-grow p-3 bg-gray-50 rounded-xl text-xs font-bold text-gray-900 outline-none border border-gray-200 w-full focus:border-brand-purple focus:bg-white transition-colors"
+                          />
+                          <input 
+                            placeholder="URL do Material..." 
+                            value={mat.url || ''} 
+                            onChange={(e) => updateMaterial(idx, 'url', e.target.value)}
+                            className="flex-grow p-3 bg-gray-50 rounded-xl text-xs font-bold text-gray-900 outline-none border border-gray-200 w-full focus:border-brand-purple focus:bg-white transition-colors"
+                          />
+                          <button type="button" onClick={() => removeMaterial(idx)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl shrink-0">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      {(!editItem.materials || editItem.materials.length === 0) && (
+                        <p className="text-center text-xs text-gray-400 py-4 italic">Nenhum material extra adicionado. O sistema usará a URL de Entrega Padrão.</p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <AdminInput label="Preço" type="number" value={editItem.price} onChange={(v: string) => setEditItem({...editItem, price: Number(v)})} required />
                     <AdminInput label="Categoria" value={editItem.category} onChange={(v: string) => setEditItem({...editItem, category: v})} required />

@@ -6,3 +6,10 @@ ALTER TABLE site_content ADD COLUMN IF NOT EXISTS homeherotitlesize numeric DEFA
 
 -- Atualiza a linha existente (id=1) para ter o valor padrão, caso esteja nulo
 UPDATE site_content SET homeherotitlesize = 6.5 WHERE id = 1 AND homeherotitlesize IS NULL;
+
+-- Adiciona coluna para múltiplos materiais (links de aulas, drive, pdfs) nos produtos
+-- É ESSENCIAL RODAR ESTA LINHA PARA QUE OS MATERIAIS SEJAM SALVOS
+ALTER TABLE products ADD COLUMN IF NOT EXISTS materials jsonb DEFAULT '[]'::jsonb;
+
+-- Adiciona coluna para link de entrega padrão (fallback), se não existir
+ALTER TABLE products ADD COLUMN IF NOT EXISTS download_url text;
