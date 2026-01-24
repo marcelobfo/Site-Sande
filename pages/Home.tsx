@@ -17,7 +17,13 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
   
   useEffect(() => {
     const fetchData = async () => {
-      const { data: prods } = await supabase.from('products').select('*').limit(3).order('created_at', { ascending: false });
+      // Filtra apenas produtos publicados
+      const { data: prods } = await supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'published') // Filtro adicionado
+        .limit(3)
+        .order('created_at', { ascending: false });
       if (prods) setFeaturedProducts(prods);
       
       const { data: posts } = await supabase.from('blog_posts').select('*').limit(3).order('publish_date', { ascending: false });

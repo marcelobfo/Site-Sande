@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Settings, Save, Home as HomeIcon, CreditCard, LayoutDashboard, Plus, 
   FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type,
-  Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers
+  Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers, Eye, EyeOff
 } from 'lucide-react';
 import { SiteContent, Product, BlogPost, View, ProductMaterial } from '../types';
 import { supabase } from '../lib/supabase';
@@ -112,6 +112,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
         payload.price = editItem.price;
         payload.description = editItem.description;
         payload.download_url = editItem.download_url;
+        payload.status = editItem.status || 'published'; // Salva o status
         payload.materials = editItem.materials && Array.isArray(editItem.materials) ? editItem.materials : [];
       } else {
         payload.content = editItem.content;
@@ -134,7 +135,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
       console.error(err);
       const message = getErrorMessage(err);
       
-      if (message.includes('column "materials" of relation "products" does not exist') || message.includes('download_url')) {
+      if (message.includes('column "materials" of relation "products" does not exist') || message.includes('download_url') || message.includes('status')) {
          notify('error', 'Banco de Dados Desatualizado', 'Colunas faltando. Rode o script SQL no Supabase.');
       } else {
          notify('error', 'Erro ao salvar', message);
@@ -264,7 +265,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                 </button>
               )}
               {(activeTab === 'manage_store' || activeTab === 'manage_blog') && (
-                <button onClick={() => { setEditItem({}); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:bg-brand-dark transition-all">
+                <button onClick={() => { setEditItem({ status: 'published' }); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:bg-brand-dark transition-all">
                   <Plus size={20} /> NOVO
                 </button>
               )}
@@ -287,7 +288,26 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <AdminInput label="Nome do Produto/Curso" value={editItem.title} onChange={(v: string) => setEditItem({...editItem, title: v})} required />
-                    <AdminInput label="Preço (R$)" type="number" value={editItem.price} onChange={(v: string) => setEditItem({...editItem, price: Number(v)})} required />
+                    <div className="grid grid-cols-2 gap-4">
+                      <AdminInput label="Preço (R$)" type="number" value={editItem.price} onChange={(v: string) => setEditItem({...editItem, price: Number(v)})} required />
+                      
+                      <div className="w-full">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-3 px-1">Status de Visibilidade</label>
+                         <div className="relative">
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300">
+                               {editItem.status === 'draft' ? <EyeOff size={16}/> : <Eye size={16}/>}
+                            </div>
+                            <select 
+                              value={editItem.status || 'published'} 
+                              onChange={(e) => setEditItem({...editItem, status: e.target.value})} 
+                              className="w-full pl-14 pr-8 py-5 bg-gray-50/50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-2xl font-bold text-brand-dark transition-all outline-none shadow-inner appearance-none cursor-pointer"
+                            >
+                               <option value="published">Publicado</option>
+                               <option value="draft">Rascunho</option>
+                            </select>
+                         </div>
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

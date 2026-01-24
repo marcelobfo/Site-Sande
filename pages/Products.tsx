@@ -37,9 +37,11 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
 
   useEffect(() => {
     const fetchProducts = async () => {
+      // Filtrar apenas produtos com status 'published'
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .eq('status', 'published') // Filtro adicionado
         .order('created_at', { ascending: false });
       
       if (data && !error) setProducts(data);

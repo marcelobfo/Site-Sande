@@ -20,6 +20,7 @@ export interface Product {
   materials?: ProductMaterial[]; // Novo campo para múltiplos links
   checkout_url?: string;
   features?: string[];
+  status?: 'published' | 'draft'; // Novo campo de status
   created_at?: string;
 }
 
