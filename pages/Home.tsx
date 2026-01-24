@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Star, Zap, ArrowRight, Sparkles, Quote, Circle, CheckCircle2, ShoppingCart, Calendar, User, ArrowUpRight, ShieldCheck, Gem } from 'lucide-react';
 import { View, SiteContent, Product, BlogPost } from '../types';
 import { supabase } from '../lib/supabase';
+import { SEO } from '../components/SEO';
 
 interface HomeProps {
   onNavigate: (view: View, id?: string) => void;
@@ -29,6 +30,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
 
   return (
     <div className="pb-20 md:pb-32 overflow-x-hidden">
+      <SEO 
+        title="Início" 
+        description={content.homeherosub} 
+        image={content.homeheroimageurl}
+      />
+
       {/* Dynamic Style for Hero Title size on Desktop */}
       <style>{`
         @media (min-width: 1280px) {

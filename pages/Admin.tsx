@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Settings, Save, Home as HomeIcon, CreditCard, LayoutDashboard, Plus, 
   FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type,
-  Youtube, HardDrive, Trash2
+  Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers
 } from 'lucide-react';
 import { SiteContent, Product, BlogPost, View, ProductMaterial } from '../types';
 import { supabase } from '../lib/supabase';
@@ -102,7 +102,6 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
     const table = activeTab === 'manage_store' ? 'products' : 'blog_posts';
     
     try {
-      // CONSTRUÇÃO MANUAL DO PAYLOAD (Evita erros de envio de campos extras e garante envio de materials)
       const payload: any = {
         title: editItem.title,
         category: editItem.category,
@@ -113,7 +112,6 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
         payload.price = editItem.price;
         payload.description = editItem.description;
         payload.download_url = editItem.download_url;
-        // IMPORTANTE: Garante que materials seja enviado como array (JSONB)
         payload.materials = editItem.materials && Array.isArray(editItem.materials) ? editItem.materials : [];
       } else {
         payload.content = editItem.content;
@@ -137,7 +135,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
       const message = getErrorMessage(err);
       
       if (message.includes('column "materials" of relation "products" does not exist') || message.includes('download_url')) {
-         notify('error', 'Banco de Dados Desatualizado', 'Colunas "materials" ou "download_url" faltando. Rode o script SQL no Supabase.');
+         notify('error', 'Banco de Dados Desatualizado', 'Colunas faltando. Rode o script SQL no Supabase.');
       } else {
          notify('error', 'Erro ao salvar', message);
       }
@@ -146,13 +144,15 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
     }
   };
 
-  // Funções para gerenciar materiais dentro do modal de produtos
+  // Funções para gerenciar materiais (Course Builder)
   const addMaterial = () => {
     const newMaterial: ProductMaterial = {
       id: Math.random().toString(36).substr(2, 9),
       title: '',
-      type: 'link',
-      url: ''
+      type: 'video',
+      url: '',
+      module: 'Módulo 1',
+      duration: ''
     };
     setEditItem({ ...editItem, materials: [...(editItem.materials || []), newMaterial] });
   };
@@ -277,72 +277,139 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">{editItem.id ? 'Editar' : 'Novo'}</h3>
+              <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tighter">{editItem.id ? 'Editar Conteúdo' : 'Novo Conteúdo'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all"><X size={24} className="text-gray-300" /></button>
             </div>
             <form onSubmit={saveFormItem} className="p-10 space-y-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
               {activeTab === 'manage_store' ? (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <AdminInput label="Título" value={editItem.title} onChange={(v: string) => setEditItem({...editItem, title: v})} required />
-                    <AdminInput label="URL Entrega Padrão (Fallback)" icon={<LinkIcon size={14}/>} value={editItem.download_url} onChange={(v: string) => setEditItem({...editItem, download_url: v})} />
+                    <AdminInput label="Nome do Produto/Curso" value={editItem.title} onChange={(v: string) => setEditItem({...editItem, title: v})} required />
+                    <AdminInput label="Preço (R$)" type="number" value={editItem.price} onChange={(v: string) => setEditItem({...editItem, price: Number(v)})} required />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <AdminInput label="Categoria" value={editItem.category} onChange={(v: string) => setEditItem({...editItem, category: v})} required />
+                    <AdminInput label="Link Externo (Checkout/Fallback)" icon={<LinkIcon size={14}/>} value={editItem.download_url} onChange={(v: string) => setEditItem({...editItem, download_url: v})} placeholder="Ex: Link do Google Drive para backup" />
                   </div>
 
-                  {/* Gerenciamento de Múltiplos Materiais */}
-                  <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                    <div className="flex justify-between items-center mb-6">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Links e Materiais do Curso</label>
-                      <button type="button" onClick={addMaterial} className="bg-brand-purple text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-brand-dark transition-all">
-                        <Plus size={14} /> Adicionar Link
+                  <AdminInput label="Descrição Completa" textarea value={editItem.description} onChange={(v: string) => setEditItem({...editItem, description: v})} required />
+
+                  {/* Course Builder Section */}
+                  <div className="bg-gray-50 p-6 md:p-8 rounded-[2.5rem] border border-gray-100">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                      <div>
+                        <h4 className="text-xl font-black text-brand-dark uppercase tracking-tight flex items-center gap-2">
+                          <LayoutDashboard className="text-brand-purple" size={20} /> Estrutura do Curso
+                        </h4>
+                        <p className="text-xs text-gray-400 font-bold mt-1">Cadastre as aulas, vídeos e materiais complementares.</p>
+                      </div>
+                      <button type="button" onClick={addMaterial} className="bg-brand-purple text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-brand-dark transition-all shadow-lg">
+                        <Plus size={16} /> Nova Aula
                       </button>
                     </div>
                     
                     <div className="space-y-4">
                       {editItem.materials?.map((mat: ProductMaterial, idx: number) => (
-                        <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-start md:items-center">
-                          <div className="w-full md:w-32 shrink-0">
-                            <select 
-                              value={mat.type} 
-                              onChange={(e) => updateMaterial(idx, 'type', e.target.value as any)}
-                              className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold text-gray-900 border border-gray-200 outline-none focus:border-brand-purple"
-                            >
-                              <option value="link">Link Geral</option>
-                              <option value="video">Vídeo (YT)</option>
-                              <option value="drive">Google Drive</option>
-                              <option value="file">Arquivo</option>
-                            </select>
+                        <div key={idx} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 items-start md:items-center group">
+                          <div className="p-3 bg-gray-50 rounded-2xl text-gray-300 cursor-move shrink-0">
+                            <GripVertical size={20} />
                           </div>
-                          <input 
-                            placeholder="Título (Ex: Aula 1)" 
-                            value={mat.title || ''} 
-                            onChange={(e) => updateMaterial(idx, 'title', e.target.value)}
-                            className="flex-grow p-3 bg-gray-50 rounded-xl text-xs font-bold text-gray-900 outline-none border border-gray-200 w-full focus:border-brand-purple focus:bg-white transition-colors"
-                          />
-                          <input 
-                            placeholder="URL do Material..." 
-                            value={mat.url || ''} 
-                            onChange={(e) => updateMaterial(idx, 'url', e.target.value)}
-                            className="flex-grow p-3 bg-gray-50 rounded-xl text-xs font-bold text-gray-900 outline-none border border-gray-200 w-full focus:border-brand-purple focus:bg-white transition-colors"
-                          />
-                          <button type="button" onClick={() => removeMaterial(idx)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl shrink-0">
-                            <Trash2 size={16} />
+
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 flex-grow w-full">
+                            {/* Linha 1: Módulo e Título */}
+                            <div className="md:col-span-3">
+                               <div className="flex items-center gap-2 mb-1.5 md:hidden">
+                                  <Layers size={12} className="text-gray-400"/>
+                                  <span className="text-[10px] font-black uppercase text-gray-400">Módulo</span>
+                               </div>
+                               <input 
+                                 placeholder="Módulo 1" 
+                                 value={mat.module || ''} 
+                                 onChange={(e) => updateMaterial(idx, 'module', e.target.value)}
+                                 className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
+                               />
+                            </div>
+                            
+                            <div className="md:col-span-6">
+                               <div className="flex items-center gap-2 mb-1.5 md:hidden">
+                                  <FileText size={12} className="text-gray-400"/>
+                                  <span className="text-[10px] font-black uppercase text-gray-400">Título da Aula</span>
+                               </div>
+                               <input 
+                                 placeholder="Título da Aula..." 
+                                 value={mat.title || ''} 
+                                 onChange={(e) => updateMaterial(idx, 'title', e.target.value)}
+                                 className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
+                               />
+                            </div>
+
+                            <div className="md:col-span-3">
+                               <div className="flex items-center gap-2 mb-1.5 md:hidden">
+                                  <Settings size={12} className="text-gray-400"/>
+                                  <span className="text-[10px] font-black uppercase text-gray-400">Tipo</span>
+                               </div>
+                               <select 
+                                 value={mat.type} 
+                                 onChange={(e) => updateMaterial(idx, 'type', e.target.value as any)}
+                                 className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
+                               >
+                                 <option value="video">Vídeo</option>
+                                 <option value="file">Arquivo</option>
+                                 <option value="link">Link</option>
+                                 <option value="drive">Drive</option>
+                               </select>
+                            </div>
+
+                            {/* Linha 2: URL e Duração */}
+                            <div className="md:col-span-9">
+                               <div className="relative">
+                                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                     {mat.type === 'video' ? <Video size={14} /> : <LinkIcon size={14} />}
+                                  </div>
+                                  <input 
+                                    placeholder={mat.type === 'video' ? "Link do YouTube, Vimeo..." : "URL do Arquivo ou Drive..."} 
+                                    value={mat.url || ''} 
+                                    onChange={(e) => updateMaterial(idx, 'url', e.target.value)}
+                                    className="w-full pl-9 p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
+                                  />
+                               </div>
+                            </div>
+
+                            <div className="md:col-span-3">
+                               <div className="relative">
+                                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                     <Clock size={14} />
+                                  </div>
+                                  <input 
+                                    placeholder="00:00" 
+                                    value={mat.duration || ''} 
+                                    onChange={(e) => updateMaterial(idx, 'duration', e.target.value)}
+                                    className="w-full pl-9 p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
+                                  />
+                               </div>
+                            </div>
+                          </div>
+
+                          <button type="button" onClick={() => removeMaterial(idx)} className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl shrink-0 transition-colors">
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       ))}
+                      
                       {(!editItem.materials || editItem.materials.length === 0) && (
-                        <p className="text-center text-xs text-gray-400 py-4 italic">Nenhum material extra adicionado. O sistema usará a URL de Entrega Padrão.</p>
+                        <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-3xl bg-white/50">
+                          <LayoutDashboard size={48} className="mx-auto text-gray-300 mb-4" />
+                          <p className="text-sm font-bold text-gray-400 uppercase tracking-wide">Nenhuma aula cadastrada</p>
+                          <p className="text-xs text-gray-400 mt-1">Clique em "Nova Aula" para começar.</p>
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <AdminInput label="Preço" type="number" value={editItem.price} onChange={(v: string) => setEditItem({...editItem, price: Number(v)})} required />
-                    <AdminInput label="Categoria" value={editItem.category} onChange={(v: string) => setEditItem({...editItem, category: v})} required />
-                  </div>
-                  <AdminInput label="Descrição" textarea value={editItem.description} onChange={(v: string) => setEditItem({...editItem, description: v})} required />
-                  <ImageUp label="Imagem" current={editItem.image_url} onUpload={(e: any) => handleImageUpload(e, 'image_url', 'modal')} />
+                  <ImageUp label="Capa do Produto" current={editItem.image_url} onUpload={(e: any) => handleImageUpload(e, 'image_url', 'modal')} />
                 </>
               ) : (
                 <>
@@ -352,12 +419,12 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                     <AdminInput label="Categoria" value={editItem.category} onChange={(v: string) => setEditItem({...editItem, category: v})} required />
                     <AdminInput label="Data" type="date" value={editItem.publish_date ? new Date(editItem.publish_date).toISOString().split('T')[0] : ''} onChange={(v: string) => setEditItem({...editItem, publish_date: v})} required />
                   </div>
-                  <ImageUp label="Imagem" current={editItem.image_url} onUpload={(e: any) => handleImageUpload(e, 'image_url', 'modal')} />
+                  <ImageUp label="Capa do Artigo" current={editItem.image_url} onUpload={(e: any) => handleImageUpload(e, 'image_url', 'modal')} />
                 </>
               )}
               <div className="pt-8 border-t border-gray-100">
-                <button type="submit" disabled={loading} className="w-full bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl flex items-center justify-center gap-3">
-                  {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />} SALVAR
+                <button type="submit" disabled={loading} className="w-full bg-brand-purple text-white py-6 rounded-3xl font-black text-xl shadow-xl flex items-center justify-center gap-3 hover:bg-brand-dark transition-all">
+                  {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />} SALVAR ALTERAÇÕES
                 </button>
               </div>
             </form>

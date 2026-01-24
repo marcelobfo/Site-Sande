@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle } from 'lucide-react';
+import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle, PlayCircle } from 'lucide-react';
 import { View, Lead, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface MyAccountProps {
-  onNavigate: (view: View) => void;
+  onNavigate: (view: View, id?: string) => void;
   user: any;
   content?: any;
 }
@@ -182,25 +182,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     }
   };
 
-  const handleDownload = (lead: Lead, product: Product) => {
-    if (product.download_url) {
-      window.open(product.download_url, '_blank');
-    } else {
-      alert("Material em processamento. Contate o suporte.");
-    }
-  };
-
-  const openMaterial = (url: string) => window.open(url, '_blank');
-
-  const getMaterialIcon = (type: string) => {
-    switch(type) {
-      case 'video': return <Youtube size={16} className="text-red-500" />;
-      case 'drive': return <HardDrive size={16} className="text-blue-500" />;
-      case 'file': return <FileText size={16} className="text-brand-orange" />;
-      default: return <LinkIcon size={16} className="text-brand-purple" />;
-    }
-  };
-
   // Helper para determinar o status do produto com base em múltiplos leads
   const getProductStatus = (productId: string): { status: 'unlocked' | 'pending' | 'locked', lead: Lead | undefined } => {
     const leadsForProduct = userLeads.filter(l => l.product_id === productId);
@@ -280,23 +261,22 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
               {myProducts.map(product => {
                 const { status, lead: userLead } = getProductStatus(product.id);
                 const isUnlocked = status === 'unlocked';
-                const isPending = status === 'pending';
-                const hasMultipleMaterials = product.materials && product.materials.length > 0;
 
                 return (
-                  <div key={product.id} className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-green-100 hover:shadow-2xl transition-all flex flex-col">
-                    <div className="p-8 md:p-10 space-y-6 flex-grow flex flex-col">
-                      <div className="flex justify-between items-start">
-                        <div className={`p-4 rounded-2xl ${isUnlocked ? 'bg-green-50 text-green-600' : 'bg-brand-orange/10 text-brand-orange'}`}>
-                          {isUnlocked ? <CheckCircle2 size={32} /> : <Clock size={32} />}
-                        </div>
-                        <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${isUnlocked ? 'bg-green-500 text-white border-green-600' : 'bg-brand-orange text-white border-brand-orange'}`}>
-                          {isUnlocked ? 'LIBERADO' : 'PROCESSANDO'}
-                        </div>
-                      </div>
+                  <div key={product.id} className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-green-100 hover:shadow-2xl transition-all flex flex-col group">
+                    <div className="relative h-40 overflow-hidden">
+                       <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={product.title} />
+                       <div className="absolute inset-0 bg-brand-dark/20 group-hover:bg-brand-dark/10 transition-colors"></div>
+                       {isUnlocked ? (
+                         <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">Liberado</div>
+                       ) : (
+                         <div className="absolute top-4 right-4 bg-brand-orange text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">Processando</div>
+                       )}
+                    </div>
 
+                    <div className="p-8 md:p-10 space-y-6 flex-grow flex flex-col">
                       <div className="flex-grow">
-                        <h3 className="text-2xl font-black text-brand-dark leading-tight line-clamp-2 min-h-[4rem]">
+                        <h3 className="text-2xl font-black text-brand-dark leading-tight line-clamp-2 min-h-[3.5rem]">
                           {product.title}
                         </h3>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">
@@ -306,23 +286,9 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
                       <div className="pt-6 border-t border-gray-50 mt-auto">
                         {isUnlocked ? (
-                          hasMultipleMaterials ? (
-                            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                              {product.materials?.map((mat, idx) => (
-                                <button key={idx} onClick={() => openMaterial(mat.url)} className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50 rounded-xl border border-gray-100 transition-all text-left group">
-                                  <div className="flex items-center gap-3">
-                                    <div className="bg-white p-2 rounded-lg shadow-sm">{getMaterialIcon(mat.type)}</div>
-                                    <span className="text-xs font-bold text-gray-600 group-hover:text-green-600 truncate max-w-[120px]">{mat.title}</span>
-                                  </div>
-                                  <ExternalLink size={12} className="text-gray-300 group-hover:text-green-500" />
-                                </button>
-                              ))}
-                            </div>
-                          ) : (
-                            <button onClick={() => handleDownload(userLead!, product)} className="w-full bg-green-500 text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:bg-green-600 transition-all flex items-center justify-center gap-3">
-                              <Download size={18} /> BAIXAR MATERIAL
-                            </button>
-                          )
+                           <button onClick={() => onNavigate('player', product.id)} className="w-full bg-brand-purple text-white py-5 rounded-2xl font-black text-sm shadow-lg hover:bg-brand-dark hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
+                             <PlayCircle size={18} /> ACESSAR AULAS
+                           </button>
                         ) : (
                           <div className="text-center">
                              <p className="text-[11px] font-bold text-gray-500 mb-3">Pagamento em análise.</p>

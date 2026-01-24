@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, User, Share2, Loader2, Quote, ArrowRight } from 'lucide-react';
 import { BlogPost, View } from '../types';
 import { supabase } from '../lib/supabase';
+import { SEO } from '../components/SEO';
 
 interface BlogPostViewProps {
   postId: string | null;
@@ -39,6 +40,13 @@ export const BlogPostView: React.FC<BlogPostViewProps> = ({ postId, onNavigate }
 
   return (
     <div className="bg-brand-cream/30 pb-32">
+      <SEO 
+        title={post.title} 
+        description={post.content.substring(0, 160) + '...'} 
+        image={post.image_url} 
+        type="article"
+      />
+
       <article className="max-w-4xl mx-auto px-4 pt-12">
         <button onClick={() => onNavigate('blog')} className="flex items-center gap-2 text-brand-purple font-black mb-12 hover:gap-4 transition-all">
           <ArrowLeft size={20} /> VOLTAR PARA O BLOG

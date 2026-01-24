@@ -17,6 +17,7 @@ import { Briefing } from './pages/Briefing';
 import { ThankYou } from './pages/ThankYou';
 import { Login } from './pages/Login';
 import { MyAccount } from './pages/MyAccount';
+import { CoursePlayer } from './pages/CoursePlayer'; // Novo componente
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
@@ -89,7 +90,6 @@ const App: React.FC = () => {
     const fetchContent = async () => {
       try {
         const { data, error } = await supabase.from('site_content').select('*').eq('id', 1).maybeSingle();
-        // Merge com DEFAULT_CONTENT garante que campos novos (como homeherotitlesize) tenham valor mesmo se não existirem no DB
         if (data && !error) setContent({ ...DEFAULT_CONTENT, ...data });
       } catch (err) {
         console.error('Erro ao carregar configurações:', err);
@@ -100,7 +100,8 @@ const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       const [view, id] = hash.split('/');
-      const validViews: View[] = ['home', 'about', 'products', 'product-detail', 'blog', 'blog-post', 'contact', 'faq', 'policies', 'refund', 'privacy', 'admin', 'briefing', 'thank-you', 'login', 'my-account'];
+      // Added 'player' to validViews
+      const validViews: View[] = ['home', 'about', 'products', 'product-detail', 'blog', 'blog-post', 'contact', 'faq', 'policies', 'refund', 'privacy', 'admin', 'briefing', 'thank-you', 'login', 'my-account', 'player'];
       
       if (validViews.includes(view as View)) {
         setCurrentView(view as View);
@@ -144,7 +145,7 @@ const App: React.FC = () => {
 
   const renderView = () => {
     if (currentView === 'admin' && !isAdmin) return <Login onNavigate={navigate} type="admin" notify={addNotification} />;
-    if (currentView === 'my-account' && !user) return <Login onNavigate={navigate} type="user" notify={addNotification} />;
+    if ((currentView === 'my-account' || currentView === 'player') && !user) return <Login onNavigate={navigate} type="user" notify={addNotification} />;
 
     switch (currentView) {
       case 'home': return <Home onNavigate={navigate} content={content} />;
@@ -163,9 +164,20 @@ const App: React.FC = () => {
       case 'thank-you': return <ThankYou onNavigate={navigate} />;
       case 'login': return <Login onNavigate={navigate} notify={addNotification} />;
       case 'my-account': return <MyAccount onNavigate={navigate} user={user} />;
+      case 'player': return <CoursePlayer productId={selectedId} onNavigate={navigate} user={user} content={content} />;
       default: return <Home onNavigate={navigate} content={content} />;
     }
   };
+
+  // Se for a visualização do Player, renderiza sem Header/Footer/CookieConsent para imersão total
+  if (currentView === 'player') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Toaster notifications={notifications} removeNotification={removeNotification} />
+        {renderView()}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">

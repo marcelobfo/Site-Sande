@@ -4,6 +4,8 @@ export interface ProductMaterial {
   title: string;
   type: 'video' | 'file' | 'link' | 'drive';
   url: string;
+  duration?: string; // Duração estimada
+  module?: string; // Nome do Módulo (ex: Módulo 1: Introdução)
 }
 
 export interface Product {
@@ -104,4 +106,4 @@ export interface Lead {
   created_at: string;
 }
 
-export type View = 'home' | 'about' | 'products' | 'product-detail' | 'blog' | 'blog-post' | 'contact' | 'faq' | 'policies' | 'refund' | 'privacy' | 'admin' | 'briefing' | 'thank-you' | 'login' | 'my-account';
+export type View = 'home' | 'about' | 'products' | 'product-detail' | 'blog' | 'blog-post' | 'contact' | 'faq' | 'policies' | 'refund' | 'privacy' | 'admin' | 'briefing' | 'thank-you' | 'login' | 'my-account' | 'player';

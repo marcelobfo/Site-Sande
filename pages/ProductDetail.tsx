@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, User, FileText, Phone, MapPin, Mail, ArrowRight, AlertCircle, MessageCircle, Star } from 'lucide-react';
 import { Product, View, SiteContent, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
+import { SEO } from '../components/SEO';
 
 interface ProductDetailProps {
   productId: string | null;
@@ -178,6 +179,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
   return (
     <div className="bg-brand-cream/30 pb-12 pt-8 min-h-screen">
+      <SEO 
+        title={product.title} 
+        description={product.description?.substring(0, 160) || "Confira este material incrível da Professora Protagonista."}
+        image={product.image_url}
+        type="article"
+      />
+
       <div className="max-w-7xl mx-auto px-4">
         <button 
           onClick={() => onNavigate('products')} 
