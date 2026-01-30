@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle, PlayCircle } from 'lucide-react';
+import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle, PlayCircle, MessageSquare } from 'lucide-react';
 import { View, Lead, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -29,6 +29,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
   const [userLeads, setUserLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [hasActiveClub, setHasActiveClub] = useState(false);
   
   // Estados para o Checkout Rápido
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -60,7 +61,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (products) setAllProducts(products);
 
-    // Ordenar leads por data de criação (descendente) ajuda, mas a lógica de prioridade é mais segura
     const { data: leads } = await supabase
       .from('leads')
       .select('*')
@@ -87,6 +87,42 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  // Helper para determinar o status do produto com verificação de validade de 1 ano
+  const getProductStatus = (productId: string): { status: 'unlocked' | 'pending' | 'locked', lead: Lead | undefined } => {
+    const leadsForProduct = userLeads.filter(l => l.product_id === productId);
+    
+    // 1. Tenta achar status pago/fechado
+    const paidLead = leadsForProduct.find(l => l.status === 'Pago' || l.status === 'Fechado');
+    
+    if (paidLead) {
+      // Verificação de Validade de 1 Ano para o Clube
+      if (productId === 'CLUBE-ANUAL') {
+        const purchaseDate = new Date(paidLead.created_at);
+        const oneYearLater = new Date(purchaseDate);
+        oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+        const now = new Date();
+
+        if (now > oneYearLater) {
+          return { status: 'locked', lead: paidLead }; // Expirado
+        }
+      }
+      return { status: 'unlocked', lead: paidLead };
+    }
+    
+    // 2. Tenta achar status aguardando
+    const pendingLead = leadsForProduct.find(l => l.status === 'Aguardando Pagamento');
+    if (pendingLead) return { status: 'pending', lead: pendingLead };
+    
+    // 3. Bloqueado
+    return { status: 'locked', lead: undefined };
+  };
+
+  // Atualiza estado global de acesso ao clube
+  useEffect(() => {
+    const { status } = getProductStatus('CLUBE-ANUAL');
+    setHasActiveClub(status === 'unlocked');
+  }, [userLeads]);
 
   const handleUnlockProduct = (product: Product) => {
     setSelectedProduct(product);
@@ -167,7 +203,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
         const finalData = asaasData?.body || asaasData?.data || asaasData;
         const paymentId = finalData?.id || finalData?.payment_link_id;
-        // Adicionado 'payment_url' na verificação
         const checkoutUrl = finalData?.url || finalData?.invoiceUrl || finalData?.paymentLink || finalData?.payment_url;
 
         if (checkoutUrl) {
@@ -187,22 +222,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     } finally {
       setPaying(false);
     }
-  };
-
-  // Helper para determinar o status do produto com base em múltiplos leads
-  const getProductStatus = (productId: string): { status: 'unlocked' | 'pending' | 'locked', lead: Lead | undefined } => {
-    const leadsForProduct = userLeads.filter(l => l.product_id === productId);
-    
-    // 1. Tenta achar status pago/fechado
-    const paidLead = leadsForProduct.find(l => l.status === 'Pago' || l.status === 'Fechado');
-    if (paidLead) return { status: 'unlocked', lead: paidLead };
-    
-    // 2. Tenta achar status aguardando
-    const pendingLead = leadsForProduct.find(l => l.status === 'Aguardando Pagamento');
-    if (pendingLead) return { status: 'pending', lead: pendingLead };
-    
-    // 3. Bloqueado
-    return { status: 'locked', lead: undefined };
   };
 
   // Separação dos Produtos usando a lógica de prioridade
@@ -252,7 +271,32 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 -mt-12 space-y-16">
+      {/* Acesso ao Fórum (Se tiver Clube) */}
+      {hasActiveClub && (
+        <div className="max-w-7xl mx-auto px-4 -mt-16 mb-16 relative z-20">
+          <div className="bg-gradient-to-r from-brand-purple to-brand-dark p-1 rounded-[2.5rem] shadow-2xl">
+            <div className="bg-white rounded-[2.2rem] p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="flex items-center gap-6">
+                <div className="bg-brand-purple/10 p-4 rounded-2xl text-brand-purple">
+                  <MessageSquare size={32} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-brand-dark uppercase tracking-tight">Comunidade VIP</h3>
+                  <p className="text-gray-500 font-medium">Interaja com outras professoras, participe de enquetes e tire dúvidas.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => onNavigate('forum')}
+                className="bg-brand-purple text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest shadow-xl hover:bg-brand-dark hover:scale-105 transition-all flex items-center gap-2"
+              >
+                ACESSAR FÓRUM <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 space-y-16">
         
         {/* SEÇÃO 1: MEUS MATERIAIS (COMPRADOS) */}
         <div>
@@ -266,7 +310,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
           {myProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {myProducts.map(product => {
-                const { status, lead: userLead } = getProductStatus(product.id);
+                const { status } = getProductStatus(product.id);
                 const isUnlocked = status === 'unlocked';
 
                 return (
@@ -361,11 +405,14 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
                           <span className="text-xs font-bold text-gray-400 uppercase">Investimento</span>
                           <span className="text-xl font-black text-brand-dark">R$ {Number(product.price).toFixed(2)}</span>
                        </div>
+                       {product.id === 'CLUBE-ANUAL' && getProductStatus('CLUBE-ANUAL').status === 'locked' && (
+                         <div className="text-center text-[10px] text-red-500 font-bold uppercase tracking-widest mb-2">Assinatura Expirada</div>
+                       )}
                        <button 
                         onClick={() => handleUnlockProduct(product)}
                         className="w-full bg-brand-orange text-white py-4 rounded-2xl font-black text-sm shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-2 group/lock"
                        >
-                         <ShoppingCart size={18} /> DESTRANCAR AGORA
+                         <ShoppingCart size={18} /> {product.id === 'CLUBE-ANUAL' ? 'RENOVAR AGORA' : 'DESTRANCAR AGORA'}
                        </button>
                     </div>
                   </div>
@@ -374,23 +421,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
             </div>
           </div>
         )}
-
-        {/* Banner Clube Upsell */}
-        <div className="p-12 bg-brand-dark rounded-[4rem] flex flex-col md:flex-row items-center justify-between gap-8 text-white relative overflow-hidden shadow-3xl">
-           <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-32 -mt-32"></div>
-           <div className="flex items-center gap-6 text-center md:text-left relative z-10">
-              <div className="bg-brand-orange p-4 rounded-full text-white shadow-xl animate-pulse">
-                <Gem size={32} />
-              </div>
-              <div>
-                <h4 className="text-2xl font-black uppercase tracking-tight">Acesso Ilimitado</h4>
-                <p className="text-brand-lilac font-medium">Assine o Clube e libere todos os materiais da vitrine de uma vez.</p>
-              </div>
-           </div>
-           <button onClick={() => onNavigate('products')} className="bg-white text-brand-dark px-10 py-5 rounded-2xl font-black shadow-2xl hover:bg-brand-orange hover:text-white transition-all relative z-10">
-              ASSINAR CLUBE PROTAGONISTA
-           </button>
-        </div>
       </div>
 
       {/* Modal de Checkout */}

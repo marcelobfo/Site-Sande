@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown, CheckCircle2, ShieldCheck, Zap } from 'lucide-react';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown, CheckCircle2, ShieldCheck, Zap, Lock } from 'lucide-react';
 import { View, SiteContent, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -368,15 +368,24 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-brand-purple" size={48} /></div>
         ) : (
           <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10" : "max-w-4xl mx-auto space-y-4"}>
-            {filteredProducts.map(product => (
-              viewMode === 'grid' ? (
+            {filteredProducts.map(product => {
+              const isPaymentActive = product.payment_active !== false;
+              
+              return viewMode === 'grid' ? (
                 <div key={product.id} className="group bg-white rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-lg border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
                   <div className="relative aspect-square overflow-hidden p-2">
                     <div className="w-full h-full rounded-[1.8rem] overflow-hidden relative">
-                      <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
+                      <img src={product.image_url} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ${!isPaymentActive ? 'grayscale-[0.5]' : ''}`} alt={product.title} />
                       <div className="absolute top-3 left-3 bg-brand-purple/90 backdrop-blur-md text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20">
                         {product.category}
                       </div>
+                      {!isPaymentActive && (
+                        <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
+                           <span className="bg-white/90 text-gray-800 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-md">
+                             <Lock size={14}/> Em Breve
+                           </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="p-6 md:p-8 flex-grow flex flex-col">
@@ -390,17 +399,20 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
                 </div>
               ) : (
                 <div key={product.id} className="group bg-white p-4 md:p-6 rounded-[2rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-4 md:gap-6 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
-                  <img src={product.image_url} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shrink-0" alt="" />
+                  <img src={product.image_url} className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shrink-0 ${!isPaymentActive ? 'grayscale' : ''}`} alt="" />
                   <div className="flex-grow min-w-0">
                     <h3 className="text-sm md:text-lg font-black text-brand-dark truncate group-hover:text-brand-purple transition-colors">{product.title}</h3>
-                    <p className="text-xs font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
+                    <div className="flex items-center gap-3">
+                       <p className="text-xs font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
+                       {!isPaymentActive && <span className="text-[9px] font-black text-gray-400 uppercase bg-gray-100 px-2 py-0.5 rounded-md">Em Breve</span>}
+                    </div>
                   </div>
                   <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center group-hover:bg-brand-orange group-hover:text-white transition-all">
                      <ArrowRight size={18} />
                   </div>
                 </div>
-              )
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

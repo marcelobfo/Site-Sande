@@ -17,7 +17,8 @@ import { Briefing } from './pages/Briefing';
 import { ThankYou } from './pages/ThankYou';
 import { Login } from './pages/Login';
 import { MyAccount } from './pages/MyAccount';
-import { CoursePlayer } from './pages/CoursePlayer'; // Novo componente
+import { CoursePlayer } from './pages/CoursePlayer';
+import { Forum } from './pages/Forum'; // Novo
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
@@ -100,8 +101,7 @@ const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       const [view, id] = hash.split('/');
-      // Added 'player' to validViews
-      const validViews: View[] = ['home', 'about', 'products', 'product-detail', 'blog', 'blog-post', 'contact', 'faq', 'policies', 'refund', 'privacy', 'admin', 'briefing', 'thank-you', 'login', 'my-account', 'player'];
+      const validViews: View[] = ['home', 'about', 'products', 'product-detail', 'blog', 'blog-post', 'contact', 'faq', 'policies', 'refund', 'privacy', 'admin', 'briefing', 'thank-you', 'login', 'my-account', 'player', 'forum'];
       
       if (validViews.includes(view as View)) {
         setCurrentView(view as View);
@@ -145,7 +145,7 @@ const App: React.FC = () => {
 
   const renderView = () => {
     if (currentView === 'admin' && !isAdmin) return <Login onNavigate={navigate} type="admin" notify={addNotification} />;
-    if ((currentView === 'my-account' || currentView === 'player') && !user) return <Login onNavigate={navigate} type="user" notify={addNotification} />;
+    if ((currentView === 'my-account' || currentView === 'player' || currentView === 'forum') && !user) return <Login onNavigate={navigate} type="user" notify={addNotification} />;
 
     switch (currentView) {
       case 'home': return <Home onNavigate={navigate} content={content} />;
@@ -165,14 +165,26 @@ const App: React.FC = () => {
       case 'login': return <Login onNavigate={navigate} notify={addNotification} />;
       case 'my-account': return <MyAccount onNavigate={navigate} user={user} />;
       case 'player': return <CoursePlayer productId={selectedId} onNavigate={navigate} user={user} content={content} />;
+      case 'forum': return <Forum onNavigate={navigate} user={user} />;
       default: return <Home onNavigate={navigate} content={content} />;
     }
   };
 
-  // Se for a visualização do Player, renderiza sem Header/Footer/CookieConsent para imersão total
+  // Se for Player ou Forum, renderiza sem Header/Footer para imersão, ou ajustado
   if (currentView === 'player') {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
+        <Toaster notifications={notifications} removeNotification={removeNotification} />
+        {renderView()}
+      </div>
+    );
+  }
+
+  // Forum pode ter layout próprio ou usar o padrão. Vamos usar padrão por enquanto, ou tela cheia sem footer.
+  // Para manter consistência, vamos remover Header/Footer no Fórum também para parecer app.
+  if (currentView === 'forum') {
+    return (
+      <div className="min-h-screen bg-gray-50 text-brand-dark">
         <Toaster notifications={notifications} removeNotification={removeNotification} />
         {renderView()}
       </div>

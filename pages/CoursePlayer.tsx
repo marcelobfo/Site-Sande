@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { PlayCircle, FileText, ChevronLeft, Menu, CheckCircle2, Lock, Download, MessageCircle, Share2, LogOut, Layout, Video, ChevronRight, X } from 'lucide-react';
+import { PlayCircle, FileText, ChevronLeft, Menu, CheckCircle2, Lock, Download, MessageCircle, Share2, LogOut, Layout, Video, ChevronRight, X, Info } from 'lucide-react';
 import { View, Product, ProductMaterial, SiteContent } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
@@ -18,6 +18,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'support'>('overview');
+  const [showingFeaturedVideo, setShowingFeaturedVideo] = useState(false);
 
   useEffect(() => {
     if (!productId) {
@@ -34,8 +35,10 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
       
       if (data && !error) {
         setProduct(data);
-        // Seleciona o primeiro material como ativo automaticamente
-        if (data.materials && data.materials.length > 0) {
+        // Se houver vídeo de destaque, mostra ele primeiro
+        if (data.featured_video_url) {
+          setShowingFeaturedVideo(true);
+        } else if (data.materials && data.materials.length > 0) {
           setActiveMaterial(data.materials[0]);
         }
       } else {
@@ -54,25 +57,20 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
 
   const getEmbedUrl = (url: string) => {
     if (!url) return '';
-    // Lógica simples para YouTube
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       const videoId = url.split('v=')[1] || url.split('/').pop();
       const cleanId = videoId?.split('&')[0];
       return `https://www.youtube.com/embed/${cleanId}?autoplay=0&rel=0&modestbranding=1`;
     }
-    // Adicionar lógica para Vimeo/Panda aqui se necessário
     return url;
   };
 
   if (loading) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-orange"></div></div>;
   if (!product) return null;
 
-  const isVideo = activeMaterial?.type === 'video';
+  const isVideo = showingFeaturedVideo ? true : activeMaterial?.type === 'video';
   const materialsList = product.materials || [];
   
-  // Agrupa materiais por "Módulo" (Simulação simples: todos no Módulo 1 se não houver estrutura complexa)
-  const hasModules = false; // Futuramente implementar lógica de módulos
-
   return (
     <div className="flex h-screen bg-gray-900 overflow-hidden font-sans">
       <SEO title={`Assistindo: ${product.title}`} description="Área do Aluno - Professora Protagonista" />
@@ -102,6 +100,22 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
 
         <div className="flex-grow overflow-y-auto custom-scrollbar">
           <div className="py-4">
+            {/* Link para Vídeo de Destaque / Instruções */}
+            {product.featured_video_url && (
+              <div className="px-6 mb-6">
+                <button 
+                  onClick={() => { setShowingFeaturedVideo(true); setActiveMaterial(null); if(window.innerWidth < 768) setSidebarOpen(false); }}
+                  className={`w-full bg-brand-orange/10 border border-brand-orange/30 p-4 rounded-xl flex items-center gap-3 hover:bg-brand-orange/20 transition-all ${showingFeaturedVideo ? 'ring-2 ring-brand-orange' : ''}`}
+                >
+                  <Info className="text-brand-orange" size={20} />
+                  <div className="text-left">
+                    <span className="text-xs font-black text-brand-orange uppercase tracking-widest block">Comece Aqui</span>
+                    <span className="text-[10px] text-gray-400">Instruções de Uso</span>
+                  </div>
+                </button>
+              </div>
+            )}
+
             <div className="px-6 mb-4">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Conteúdo do Curso</p>
               <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
@@ -115,14 +129,14 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
               {materialsList.length > 0 ? materialsList.map((material, idx) => (
                 <button
                   key={idx}
-                  onClick={() => { setActiveMaterial(material); if(window.innerWidth < 768) setSidebarOpen(false); }}
-                  className={`w-full text-left px-6 py-4 flex items-start gap-4 hover:bg-gray-900 transition-colors border-l-4 ${activeMaterial?.id === material.id ? 'bg-gray-900 border-brand-orange' : 'border-transparent'}`}
+                  onClick={() => { setActiveMaterial(material); setShowingFeaturedVideo(false); if(window.innerWidth < 768) setSidebarOpen(false); }}
+                  className={`w-full text-left px-6 py-4 flex items-start gap-4 hover:bg-gray-900 transition-colors border-l-4 ${activeMaterial?.id === material.id && !showingFeaturedVideo ? 'bg-gray-900 border-brand-orange' : 'border-transparent'}`}
                 >
-                  <div className={`mt-0.5 ${activeMaterial?.id === material.id ? 'text-brand-orange' : 'text-gray-500'}`}>
+                  <div className={`mt-0.5 ${(activeMaterial?.id === material.id && !showingFeaturedVideo) ? 'text-brand-orange' : 'text-gray-500'}`}>
                     {material.type === 'video' ? <PlayCircle size={16} /> : <FileText size={16} />}
                   </div>
                   <div>
-                    <span className={`text-sm font-medium block leading-snug ${activeMaterial?.id === material.id ? 'text-white' : 'text-gray-400'}`}>
+                    <span className={`text-sm font-medium block leading-snug ${(activeMaterial?.id === material.id && !showingFeaturedVideo) ? 'text-white' : 'text-gray-400'}`}>
                       {material.title || `Aula ${idx + 1}`}
                     </span>
                     <span className="text-[10px] text-gray-600 block mt-1 uppercase tracking-wider font-bold">
@@ -153,7 +167,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
               <Menu size={20} />
             </button>
             <h1 className="text-white font-bold text-lg hidden sm:block truncate max-w-md">
-              {activeMaterial?.title || 'Selecionar Aula'}
+              {showingFeaturedVideo ? "Instruções de Uso & Boas-Vindas" : (activeMaterial?.title || 'Selecionar Aula')}
             </h1>
           </div>
           <div className="flex items-center gap-4">
@@ -172,12 +186,12 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
             
             {/* Player Container */}
             <div className="aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden relative border border-gray-800 mb-8 group">
-              {activeMaterial ? (
+              {(activeMaterial || showingFeaturedVideo) ? (
                 isVideo ? (
                   <iframe 
-                    src={getEmbedUrl(activeMaterial.url)} 
+                    src={getEmbedUrl(showingFeaturedVideo ? (product.featured_video_url || '') : (activeMaterial?.url || ''))} 
                     className="w-full h-full" 
-                    title={activeMaterial.title}
+                    title={showingFeaturedVideo ? "Instruções" : activeMaterial?.title}
                     frameBorder="0" 
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                     allowFullScreen
@@ -188,10 +202,10 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
                          <FileText size={64} />
                       </div>
                       <div className="text-center">
-                        <h3 className="text-2xl font-black text-white mb-2">{activeMaterial.title}</h3>
+                        <h3 className="text-2xl font-black text-white mb-2">{activeMaterial?.title}</h3>
                         <p className="text-gray-400 mb-6">Este conteúdo é um arquivo para download ou link externo.</p>
                         <a 
-                          href={activeMaterial.url} 
+                          href={activeMaterial?.url} 
                           target="_blank" 
                           rel="noreferrer"
                           className="inline-flex items-center gap-3 bg-brand-purple text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-brand-dark transition-all"
@@ -211,16 +225,20 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
             {/* Navigation & Actions */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 pb-10 border-b border-gray-800">
                <div>
-                  <h1 className="text-2xl font-black text-white mb-2">{activeMaterial?.title}</h1>
+                  <h1 className="text-2xl font-black text-white mb-2">
+                    {showingFeaturedVideo ? "Instruções de Uso" : activeMaterial?.title}
+                  </h1>
                   <p className="text-gray-500 text-sm font-medium">{product.category} • {product.title}</p>
                </div>
                <div className="flex gap-3">
-                  <button 
-                    disabled={!activeMaterial} 
-                    className="bg-gray-800 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-green-600 transition-all flex items-center gap-2"
-                  >
-                    <CheckCircle2 size={16} /> Marcar como Concluída
-                  </button>
+                  {!showingFeaturedVideo && (
+                    <button 
+                      disabled={!activeMaterial} 
+                      className="bg-gray-800 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-green-600 transition-all flex items-center gap-2"
+                    >
+                      <CheckCircle2 size={16} /> Marcar como Concluída
+                    </button>
+                  )}
                </div>
             </div>
 
@@ -258,7 +276,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
 
                 {activeTab === 'files' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {activeMaterial && activeMaterial.type !== 'video' && (
+                     {activeMaterial && activeMaterial.type !== 'video' && !showingFeaturedVideo && (
                        <a href={activeMaterial.url} target="_blank" className="bg-gray-800 p-6 rounded-2xl flex items-center gap-4 hover:bg-gray-700 transition-all border border-gray-700 group">
                           <div className="bg-brand-purple/20 p-3 rounded-xl text-brand-purple group-hover:bg-brand-purple group-hover:text-white transition-all">
                              <Download size={24} />
@@ -294,7 +312,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
                        Nossa equipe pedagógica está pronta para tirar suas dúvidas sobre o conteúdo desta aula. Envie sua pergunta diretamente pelo WhatsApp.
                      </p>
                      <a 
-                       href={`https://wa.me/${content.supportwhatsapp}?text=Olá, tenho uma dúvida na aula: ${activeMaterial?.title} do curso ${product.title}`}
+                       href={`https://wa.me/${content.supportwhatsapp}?text=Olá, tenho uma dúvida na aula: ${showingFeaturedVideo ? "Instruções" : activeMaterial?.title} do curso ${product.title}`}
                        target="_blank"
                        className="inline-flex items-center gap-3 bg-green-500 text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-lg"
                      >

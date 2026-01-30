@@ -18,9 +18,11 @@ export interface Product {
   image_url: string;
   download_url?: string; // Mantido para compatibilidade
   materials?: ProductMaterial[]; // Novo campo para múltiplos links
+  featured_video_url?: string; // Vídeo de instrução/destaque
   checkout_url?: string;
   features?: string[];
   status?: 'published' | 'draft'; // Novo campo de status
+  payment_active?: boolean; // Se false, mostra "Em Breve" e bloqueia compra
   created_at?: string;
 }
 
@@ -107,4 +109,38 @@ export interface Lead {
   created_at: string;
 }
 
-export type View = 'home' | 'about' | 'products' | 'product-detail' | 'blog' | 'blog-post' | 'contact' | 'faq' | 'policies' | 'refund' | 'privacy' | 'admin' | 'briefing' | 'thank-you' | 'login' | 'my-account' | 'player';
+// Forum Types
+export interface ForumTopic {
+  id: string;
+  title: string;
+  author_name: string;
+  author_email: string;
+  category: string;
+  created_at: string;
+  likes: number;
+}
+
+export interface ForumPost {
+  id: string;
+  topic_id: string;
+  content: string;
+  author_name: string;
+  author_email: string;
+  created_at: string;
+  is_admin: boolean;
+}
+
+export interface ForumPollOption {
+  id: string;
+  poll_id: string;
+  option_text: string;
+}
+
+export interface ForumPoll {
+  id: string;
+  topic_id: string;
+  question: string;
+  options?: ForumPollOption[];
+}
+
+export type View = 'home' | 'about' | 'products' | 'product-detail' | 'blog' | 'blog-post' | 'contact' | 'faq' | 'policies' | 'refund' | 'privacy' | 'admin' | 'briefing' | 'thank-you' | 'login' | 'my-account' | 'player' | 'forum';

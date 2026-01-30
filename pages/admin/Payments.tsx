@@ -1,8 +1,10 @@
-import React from 'react';
-import { CreditCard, Link as LinkIcon, RefreshCcw, ShieldCheck, Terminal, ShieldAlert, Copy } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { CreditCard, Link as LinkIcon, RefreshCcw, ShieldCheck, Terminal, ShieldAlert, Copy, UserPlus, Loader2 } from 'lucide-react';
 import { SiteContent } from '../../types';
 import { Section, AdminInput } from '../../components/admin/AdminShared';
 import { NotificationType } from '../../components/Notification';
+import { supabase } from '../../lib/supabase';
 
 interface AdminPaymentsProps {
   form: SiteContent;
@@ -11,6 +13,31 @@ interface AdminPaymentsProps {
 }
 
 export const AdminPayments: React.FC<AdminPaymentsProps> = ({ form, setForm, notify }) => {
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
+
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail) return notify('warning', 'Atenção', 'Digite o e-mail do usuário.');
+    
+    setLoadingAdmin(true);
+    try {
+      // Chama a função RPC segura do banco de dados
+      const { error } = await supabase.rpc('set_admin_role', { 
+        target_email: newAdminEmail, 
+        is_admin: true 
+      });
+
+      if (error) throw error;
+
+      notify('success', 'Admin Adicionado', `O usuário ${newAdminEmail} agora é um Super Admin.`);
+      setNewAdminEmail('');
+    } catch (err: any) {
+      notify('error', 'Erro ao promover', err.message || 'Verifique se o e-mail está cadastrado.');
+    } finally {
+      setLoadingAdmin(false);
+    }
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4">
       <Section title="Gateway Asaas" icon={<CreditCard />}>
@@ -54,18 +81,36 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ form, setForm, not
         </div>
       </Section>
 
-      <div className="bg-brand-dark p-12 rounded-[4rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-3xl">
-         <div className="flex items-center gap-6">
-            <div className="bg-brand-orange p-5 rounded-3xl shadow-xl animate-pulse"><ShieldAlert size={32} /></div>
-            <div>
-               <h4 className="text-2xl font-black uppercase tracking-tight">Privilégios Admin</h4>
-               <p className="text-brand-lilac font-medium opacity-80">Comando para promover usuário via Supabase SQL.</p>
+      <Section title="Controle de Acesso (Admins)" icon={<ShieldAlert />}>
+         <div className="bg-brand-dark p-8 rounded-[3rem] text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mt-32 -mr-32 pointer-events-none"></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+               <div className="md:w-1/2 space-y-4">
+                  <h4 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                    <UserPlus className="text-brand-orange" /> Adicionar Super Admin
+                  </h4>
+                  <p className="text-gray-400 font-medium text-sm leading-relaxed">
+                    Transforme um usuário já cadastrado em um Super Administrador. Ele terá acesso total a este painel.
+                  </p>
+               </div>
+               <div className="md:w-1/2 w-full bg-white/10 p-2 rounded-2xl flex gap-2 border border-white/10">
+                  <input 
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    placeholder="E-mail do usuário..." 
+                    className="bg-transparent text-white placeholder-gray-400 font-bold px-4 w-full outline-none"
+                  />
+                  <button 
+                    onClick={handleAddAdmin}
+                    disabled={loadingAdmin}
+                    className="bg-brand-orange hover:bg-white hover:text-brand-orange text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 flex items-center gap-2"
+                  >
+                    {loadingAdmin ? <Loader2 className="animate-spin" size={16} /> : 'Promover'}
+                  </button>
+               </div>
             </div>
          </div>
-         <button onClick={() => { navigator.clipboard.writeText("UPDATE auth.users SET raw_user_meta_data = '{\"role\": \"admin\"}' WHERE email = 'EMAIL_AQUI';"); notify('success', 'Comando Copiado', 'Execute o SQL no painel do Supabase.'); }} className="bg-white/10 hover:bg-white/20 text-white px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all border border-white/10 flex items-center gap-3">
-           <Copy size={16} /> COPIAR SQL
-         </button>
-      </div>
+      </Section>
     </div>
   );
 };

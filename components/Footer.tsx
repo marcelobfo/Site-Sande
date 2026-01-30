@@ -75,9 +75,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, content }) => {
         </div>
 
         <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
-          <p className="text-gray-500 font-bold text-xs uppercase tracking-widest text-center">
-            Copyright © 2026 Professora Sande Almeida. Todos os direitos reservados.
-          </p>
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <p className="text-gray-500 font-bold text-xs uppercase tracking-widest text-center md:text-left">
+              Copyright © 2026 Professora Sande Almeida. Todos os direitos reservados.
+            </p>
+            <a href="https://technedigital.com.br" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black uppercase tracking-widest text-brand-purple hover:text-white transition-colors">
+              Construído por Techne Digital
+            </a>
+          </div>
           <div className="flex gap-8 text-[10px] font-black uppercase tracking-widest text-gray-500">
             <button onClick={() => onNavigate('privacy')} className="hover:text-white">Termos de Uso</button>
             <button onClick={() => onNavigate('contact')} className="hover:text-white">Suporte</button>

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Settings, Save, Home as HomeIcon, CreditCard, LayoutDashboard, Plus, 
   FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type,
-  Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers, Eye, EyeOff
+  Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers, Eye, EyeOff, Lock, Unlock, PlayCircle
 } from 'lucide-react';
 import { SiteContent, Product, BlogPost, View, ProductMaterial } from '../types';
 import { supabase } from '../lib/supabase';
@@ -112,7 +112,9 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
         payload.price = editItem.price;
         payload.description = editItem.description;
         payload.download_url = editItem.download_url;
-        payload.status = editItem.status || 'published'; // Salva o status
+        payload.featured_video_url = editItem.featured_video_url; // Novo campo
+        payload.status = editItem.status || 'published'; 
+        payload.payment_active = editItem.payment_active !== false; 
         payload.materials = editItem.materials && Array.isArray(editItem.materials) ? editItem.materials : [];
       } else {
         payload.content = editItem.content;
@@ -180,7 +182,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
   const renderContent = () => {
     switch (activeTab) {
       case 'leads': return <AdminLeads leads={leads} onUpdate={fetchAllData} notify={notify} />;
-      case 'manage_store': return <AdminProducts products={products} onEdit={(p) => { setEditItem(p); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('products').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Produto removido.'); } }} />;
+      case 'manage_store': return <AdminProducts products={products} onEdit={(p) => { setEditItem({ ...p, payment_active: p.payment_active ?? true }); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('products').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Produto removido.'); } }} />;
       case 'manage_blog': return <AdminBlog posts={posts} onEdit={(p) => { setEditItem(p); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('blog_posts').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Post removido.'); } }} />;
       case 'settings': return <AdminAppearance form={form} setForm={setForm} onImageUpload={handleImageUpload} />;
       case 'payments': return <AdminPayments form={form} setForm={setForm} notify={notify} />;
@@ -239,7 +241,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
           <SidebarItem id="content_home" icon={<HomeIcon size={20} />} label="Home & Clube" />
           <SidebarItem id="content_about" icon={<Info size={20} />} label="Sobre & Empresa" />
           <SidebarItem id="settings" icon={<Palette size={20} />} label="Aparência" />
-          <SidebarItem id="payments" icon={<CreditCard size={20} />} label="Pagamentos" />
+          <SidebarItem id="payments" icon={<CreditCard size={20} />} label="Pagamentos & Admins" />
         </nav>
         <button onClick={handleLogout} className="mt-8 flex items-center gap-4 px-4 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 transition-all">
           <LogOut size={20} />
@@ -265,7 +267,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                 </button>
               )}
               {(activeTab === 'manage_store' || activeTab === 'manage_blog') && (
-                <button onClick={() => { setEditItem({ status: 'published' }); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:bg-brand-dark transition-all">
+                <button onClick={() => { setEditItem({ status: 'published', payment_active: true }); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:bg-brand-dark transition-all">
                   <Plus size={20} /> NOVO
                 </button>
               )}
@@ -311,8 +313,28 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <AdminInput label="Categoria" value={editItem.category} onChange={(v: string) => setEditItem({...editItem, category: v})} required />
-                    <AdminInput label="Link Externo (Checkout/Fallback)" icon={<LinkIcon size={14}/>} value={editItem.download_url} onChange={(v: string) => setEditItem({...editItem, download_url: v})} placeholder="Ex: Link do Google Drive para backup" />
+                    <div className="space-y-3">
+                       <AdminInput label="Categoria" value={editItem.category} onChange={(v: string) => setEditItem({...editItem, category: v})} required />
+                       {/* Toggle de Link de Pagamento */}
+                       <div className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${editItem.payment_active !== false ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-200'}`} onClick={() => setEditItem({...editItem, payment_active: editItem.payment_active === false})}>
+                          <div className="flex items-center gap-3">
+                             <div className={`p-2 rounded-xl text-white ${editItem.payment_active !== false ? 'bg-green-500' : 'bg-gray-400'}`}>
+                               {editItem.payment_active !== false ? <Unlock size={16} /> : <Lock size={16} />}
+                             </div>
+                             <div>
+                               <p className="text-xs font-black uppercase tracking-wide text-brand-dark">Link de Pagamento</p>
+                               <p className="text-[10px] font-bold text-gray-500">{editItem.payment_active !== false ? 'Ativo (Vendas Abertas)' : 'Inativo (Em Breve)'}</p>
+                             </div>
+                          </div>
+                          <div className={`w-10 h-6 rounded-full relative transition-colors ${editItem.payment_active !== false ? 'bg-green-500' : 'bg-gray-300'}`}>
+                             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${editItem.payment_active !== false ? 'right-1' : 'left-1'}`}></div>
+                          </div>
+                       </div>
+                    </div>
+                    <div className="space-y-3">
+                        <AdminInput label="Vídeo em Destaque / Instruções (YouTube URL)" icon={<PlayCircle size={14}/>} value={editItem.featured_video_url} onChange={(v: string) => setEditItem({...editItem, featured_video_url: v})} placeholder="Ex: https://youtube.com/..." />
+                        <AdminInput label="Link Externo (Checkout/Fallback)" icon={<LinkIcon size={14}/>} value={editItem.download_url} onChange={(v: string) => setEditItem({...editItem, download_url: v})} placeholder="Ex: Link do Google Drive" />
+                    </div>
                   </div>
 
                   <AdminInput label="Descrição Completa" textarea value={editItem.description} onChange={(v: string) => setEditItem({...editItem, description: v})} required />

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, User, FileText, Phone, MapPin, Mail, ArrowRight, AlertCircle, MessageCircle, Star } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, User, FileText, Phone, MapPin, Mail, ArrowRight, AlertCircle, MessageCircle, Star, Lock } from 'lucide-react';
 import { Product, View, SiteContent, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
@@ -182,6 +182,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
   if (loading || !product) return null;
 
+  // Lógica para determinar se o pagamento está ativo
+  const isPaymentActive = product.payment_active !== false; // Padrão é true (ativo) se undefined
+
   return (
     <div className="bg-brand-cream/30 pb-12 pt-8 min-h-screen">
       <SEO 
@@ -205,12 +208,17 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
             <div className="bg-white p-3 rounded-[2.5rem] shadow-3xl border border-white relative">
               <img 
                 src={product.image_url} 
-                className="w-full rounded-[2rem] aspect-square object-cover" 
+                className={`w-full rounded-[2rem] aspect-square object-cover ${!isPaymentActive ? 'grayscale-[0.3]' : ''}`}
                 alt={product.title} 
               />
               <div className="absolute top-8 left-8 bg-brand-orange text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
                 {product.category}
               </div>
+              {!isPaymentActive && (
+                <div className="absolute bottom-8 right-8 bg-gray-800 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
+                  <Lock size={14} /> Em Breve
+                </div>
+              )}
             </div>
             
             <div className="mt-8 flex gap-4 overflow-x-auto pb-2 no-scrollbar">
@@ -258,12 +266,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
               </div>
 
               <div className="space-y-4 relative z-10">
-                <button 
-                  onClick={() => setShowBillingForm(true)}
-                  className="w-full bg-brand-orange text-white py-5 md:py-6 rounded-2xl font-black text-lg md:text-xl shadow-xl hover:bg-brand-dark hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
-                >
-                  <ShoppingCart size={24} /> COMPRAR AGORA
-                </button>
+                {isPaymentActive ? (
+                  <button 
+                    onClick={() => setShowBillingForm(true)}
+                    className="w-full bg-brand-orange text-white py-5 md:py-6 rounded-2xl font-black text-lg md:text-xl shadow-xl hover:bg-brand-dark hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
+                  >
+                    <ShoppingCart size={24} /> COMPRAR AGORA
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      if(notify) notify('info', 'Aguarde Novidades!', 'As vendas para este material estarão liberadas em breve. Fique atenta ao grupo!');
+                    }}
+                    className="w-full bg-gray-300 text-gray-500 py-5 md:py-6 rounded-2xl font-black text-lg md:text-xl shadow-none cursor-not-allowed flex items-center justify-center gap-3"
+                  >
+                    <Lock size={24} /> EM BREVE
+                  </button>
+                )}
+                
                 <p className="text-gray-400 text-[9px] font-bold text-center flex items-center justify-center gap-1.5 uppercase tracking-widest">
                   <ShieldCheck size={14} className="text-green-500" /> Pagamento 100% Seguro
                 </p>
@@ -273,7 +293,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         </div>
       </div>
 
-      {showBillingForm && (
+      {showBillingForm && isPaymentActive && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
           <div className="bg-white w-full max-w-4xl rounded-[2rem] shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
             <div className="p-4 md:p-6 border-b flex justify-between items-center bg-gray-50/50">
