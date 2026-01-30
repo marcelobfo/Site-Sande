@@ -137,10 +137,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
 
         const rawData = await response.json().catch(() => ({}));
         
-        // TRATAMENTO DO RETORNO (Captura dados do primeiro item se vier em Array)
+        // TRATAMENTO DO RETORNO ROBUSTO
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
-        const asaasId = asaasData?.id;
-        const checkoutUrl = asaasData?.url;
+        // Verifica se os dados estão dentro de 'body', 'data' ou na raiz
+        const finalData = asaasData?.body || asaasData?.data || asaasData;
+        
+        const asaasId = finalData?.id || finalData?.payment_link_id;
+        // Adicionado 'payment_url' na verificação
+        const checkoutUrl = finalData?.url || finalData?.invoiceUrl || finalData?.paymentLink || finalData?.payment_url;
 
         if (checkoutUrl) {
           // 3. ATUALIZA O LEAD COM O ID E O LINK GERADO
@@ -153,7 +157,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           // Redireciona o usuário
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('O servidor não retornou a URL de pagamento.');
+          console.error("Payload Recebido do Backend:", rawData);
+          throw new Error('O servidor não retornou a URL de pagamento. Verifique o console para mais detalhes.');
         }
       } else {
         redirectToWhatsApp();

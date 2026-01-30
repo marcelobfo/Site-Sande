@@ -162,13 +162,20 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         });
 
         const rawData = await response.json().catch(() => ({}));
+        
+        // Tratamento Robusto
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
+        const finalData = asaasData?.body || asaasData?.data || asaasData;
+        const paymentId = finalData?.id || finalData?.payment_link_id;
+        // Adicionado 'payment_url' na verificação
+        const checkoutUrl = finalData?.url || finalData?.invoiceUrl || finalData?.paymentLink || finalData?.payment_url;
 
-        if (asaasData?.url) {
-           await supabase.from('leads').update({ payment_id: asaasData.id }).eq('id', leadData.id);
-           window.location.href = asaasData.url;
+        if (checkoutUrl) {
+           await supabase.from('leads').update({ payment_id: paymentId }).eq('id', leadData.id);
+           window.location.href = checkoutUrl;
         } else {
-           throw new Error('Erro ao gerar link de pagamento.');
+           console.error("Payload Recebido:", rawData);
+           throw new Error('Link de pagamento não encontrado na resposta.');
         }
       } else {
         const msg = `Olá! Quero destravar o material: *${selectedProduct.title}* direto pelo portal.`;

@@ -133,9 +133,14 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
         const rawData = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(rawData.message || `Erro ${response.status}`);
 
+        // Tratamento Robusto de Resposta do Asaas/n8n
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
-        const asaasId = asaasData?.id;
-        const checkoutUrl = asaasData?.url;
+        // Verifica se os dados estão dentro de 'body', 'data' ou na raiz
+        const finalData = asaasData?.body || asaasData?.data || asaasData;
+        
+        const asaasId = finalData?.id || finalData?.payment_link_id;
+        // Adicionado 'payment_url' na verificação
+        const checkoutUrl = finalData?.url || finalData?.invoiceUrl || finalData?.paymentLink || finalData?.payment_url;
 
         if (checkoutUrl) {
           if (createdLeadId) {
@@ -146,7 +151,8 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           }
           window.location.href = checkoutUrl;
         } else {
-          throw new Error('Link de pagamento não gerado pelo servidor.');
+          console.error("Payload Recebido do Backend:", rawData);
+          throw new Error('Link de pagamento não encontrado na resposta do servidor.');
         }
       } else {
         redirectToWhatsApp();
