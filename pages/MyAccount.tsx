@@ -38,6 +38,8 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [siteConfig, setSiteConfig] = useState<any>(null);
 
+  const CLUB_ID = '9e30a57d-14a0-4386-8a5f-0f8a85f40000'; // UUID válido para o Clube
+
   const [customerData, setCustomerData] = useState<AsaasCustomerData>({
     name: '',
     email: user?.email || '',
@@ -97,7 +99,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     
     if (paidLead) {
       // Verificação de Validade de 1 Ano para o Clube
-      if (productId === 'CLUBE-ANUAL') {
+      if (productId === CLUB_ID) {
         const purchaseDate = new Date(paidLead.created_at);
         const oneYearLater = new Date(purchaseDate);
         oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
@@ -120,7 +122,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
   // Atualiza estado global de acesso ao clube
   useEffect(() => {
-    const { status } = getProductStatus('CLUBE-ANUAL');
+    const { status } = getProductStatus(CLUB_ID);
     setHasActiveClub(status === 'unlocked');
   }, [userLeads]);
 
@@ -405,14 +407,14 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
                           <span className="text-xs font-bold text-gray-400 uppercase">Investimento</span>
                           <span className="text-xl font-black text-brand-dark">R$ {Number(product.price).toFixed(2)}</span>
                        </div>
-                       {product.id === 'CLUBE-ANUAL' && getProductStatus('CLUBE-ANUAL').status === 'locked' && (
+                       {product.id === CLUB_ID && getProductStatus(CLUB_ID).status === 'locked' && (
                          <div className="text-center text-[10px] text-red-500 font-bold uppercase tracking-widest mb-2">Assinatura Expirada</div>
                        )}
                        <button 
                         onClick={() => handleUnlockProduct(product)}
                         className="w-full bg-brand-orange text-white py-4 rounded-2xl font-black text-sm shadow-xl hover:bg-brand-dark transition-all flex items-center justify-center gap-2 group/lock"
                        >
-                         <ShoppingCart size={18} /> {product.id === 'CLUBE-ANUAL' ? 'RENOVAR AGORA' : 'DESTRANCAR AGORA'}
+                         <ShoppingCart size={18} /> {product.id === CLUB_ID ? 'RENOVAR AGORA' : 'DESTRANCAR AGORA'}
                        </button>
                     </div>
                   </div>

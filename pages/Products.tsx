@@ -64,6 +64,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     setPayingClub(true);
     
     let createdLeadId: string | null = null;
+    const CLUB_ID = '9e30a57d-14a0-4386-8a5f-0f8a85f40000'; // UUID válido para o Clube
 
     try {
       // 1. SALVAR LEAD
@@ -76,7 +77,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           subject: `Checkout Clube`,
           message: `Iniciou assinatura anual do Clube.`,
           status: 'Aguardando Pagamento',
-          product_id: 'CLUBE-ANUAL',
+          product_id: CLUB_ID,
           product_name: content.clubetitle || 'Clube Professora Protagonista',
           value: Number(content.clubeprice),
           cpf_cnpj: customerData.cpfCnpj,
@@ -116,7 +117,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
             complement: customerData.complement
           },
           product: { 
-            id: 'CLUBE-ANUAL', 
+            id: CLUB_ID, 
             name: content.clubetitle || 'Clube', 
             value: Number(content.clubeprice) 
           },

@@ -246,7 +246,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
               {product.title}
             </h1>
             
-            <div className="prose prose-purple text-gray-500 font-medium leading-relaxed mb-10 max-w-xl">
+            <div className="prose prose-purple text-gray-500 font-medium leading-relaxed mb-10 max-w-xl whitespace-pre-line">
                {product.description}
             </div>
 

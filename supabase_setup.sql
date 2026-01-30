@@ -86,3 +86,17 @@ CREATE TABLE IF NOT EXISTS forum_poll_votes (
 ALTER PUBLICATION supabase_realtime ADD TABLE forum_topics;
 ALTER PUBLICATION supabase_realtime ADD TABLE forum_posts;
 ALTER PUBLICATION supabase_realtime ADD TABLE forum_poll_votes;
+
+-- 6. Criar Produto Principal (Clube) para Vinculação Correta
+-- ID: 9e30a57d-14a0-4386-8a5f-0f8a85f40000 (UUID válido para evitar erro de tipo)
+INSERT INTO products (id, title, description, price, category, image_url, status, payment_active)
+VALUES (
+  '9e30a57d-14a0-4386-8a5f-0f8a85f40000',
+  'Clube Professora Protagonista',
+  'Acesso anual completo a todos os materiais, aulas de edição e suporte exclusivo. Transforme sua prática pedagógica com recursos ilimitados.',
+  397.00,
+  'Assinatura',
+  'https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png',
+  'published',
+  true
+) ON CONFLICT (id) DO NOTHING;
