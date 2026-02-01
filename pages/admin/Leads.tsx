@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Calendar, Mail, Package, X, Phone, Database, Edit3, Trash2, DollarSign, GripVertical } from 'lucide-react';
 import { Lead, LeadStatus } from '../../types';
@@ -11,12 +10,13 @@ interface AdminLeadsProps {
   notify: (type: NotificationType, title: string, message: string) => void;
 }
 
-const STATUS_OPTIONS: LeadStatus[] = ['Novo', 'Aguardando Pagamento', 'Pago', 'Cancelado', 'Em Contato', 'Fechado', 'Perdido'];
+const STATUS_OPTIONS: LeadStatus[] = ['Novo', 'Aguardando Pagamento', 'Pago', 'Aprovado', 'Cancelado', 'Em Contato', 'Fechado', 'Perdido'];
 
 const getStatusColor = (status: LeadStatus) => {
   switch (status) {
     case 'Pago':
-    case 'Fechado': return 'bg-green-500';
+    case 'Fechado': 
+    case 'Aprovado': return 'bg-green-500';
     case 'Aguardando Pagamento': return 'bg-brand-orange';
     case 'Cancelado':
     case 'Perdido': return 'bg-red-500';

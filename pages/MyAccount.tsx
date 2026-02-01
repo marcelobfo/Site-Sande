@@ -92,10 +92,27 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
   // Helper para determinar o status do produto com verificação de validade de 1 ano
   const getProductStatus = (productId: string): { status: 'unlocked' | 'pending' | 'locked', lead: Lead | undefined } => {
-    const leadsForProduct = userLeads.filter(l => l.product_id === productId);
+    // Busca inicial pelo ID exato
+    let leadsForProduct = userLeads.filter(l => l.product_id === productId);
     
+    // Lógica Estendida para o Clube (Retrocompatibilidade)
+    if (productId === CLUB_ID) {
+      const legacyLeads = userLeads.filter(l => 
+        l.product_id === 'CLUBE-ANUAL' || 
+        (l.product_name && l.product_name.toLowerCase().includes('clube')) ||
+        (l.product_name && l.product_name.toLowerCase().includes('assinatura'))
+      );
+      // Mescla leads evitando duplicatas de referência (embora IDs sejam únicos)
+      leadsForProduct = [...leadsForProduct, ...legacyLeads];
+    }
+
     // 1. Tenta achar status pago/fechado
-    const paidLead = leadsForProduct.find(l => l.status === 'Pago' || l.status === 'Fechado');
+    // Ordena por data decrescente para pegar o mais recente
+    leadsForProduct.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    
+    const paidLead = leadsForProduct.find(l => 
+      l.status === 'Pago' || l.status === 'Fechado' || l.status === 'Aprovado'
+    );
     
     if (paidLead) {
       // Verificação de Validade de 1 Ano para o Clube
@@ -105,6 +122,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
         const now = new Date();
 
+        // Dá uma margem de tolerância ou verifica estritamente
         if (now > oneYearLater) {
           return { status: 'locked', lead: paidLead }; // Expirado
         }
@@ -113,7 +131,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
     }
     
     // 2. Tenta achar status aguardando
-    const pendingLead = leadsForProduct.find(l => l.status === 'Aguardando Pagamento');
+    const pendingLead = leadsForProduct.find(l => l.status === 'Aguardando Pagamento' || l.status === 'Novo');
     if (pendingLead) return { status: 'pending', lead: pendingLead };
     
     // 3. Bloqueado

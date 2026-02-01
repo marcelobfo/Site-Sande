@@ -133,3 +133,13 @@ VALUES (
 UPDATE leads 
 SET product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000' 
 WHERE product_id = 'CLUBE-ANUAL';
+
+-- 9. Correção Específica para Marcelo (Outlook)
+-- Atualiza qualquer compra que tenha "Clube" no nome ou ID antigo para o ID correto e Status Pago
+UPDATE leads
+SET 
+  product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000',
+  status = 'Pago'
+WHERE 
+  email ILIKE 'marcelobfo@outlook%' 
+  AND (product_id = 'CLUBE-ANUAL' OR product_name ILIKE '%Clube%');

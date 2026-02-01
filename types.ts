@@ -1,4 +1,3 @@
-
 export interface ProductMaterial {
   id: string;
   title: string;
@@ -97,7 +96,7 @@ export interface SiteContent {
   meta_api_token?: string;
 }
 
-export type LeadStatus = 'Novo' | 'Aguardando Pagamento' | 'Pago' | 'Cancelado' | 'Em Contato' | 'Fechado' | 'Perdido';
+export type LeadStatus = 'Novo' | 'Aguardando Pagamento' | 'Pago' | 'Cancelado' | 'Em Contato' | 'Fechado' | 'Perdido' | 'Aprovado';
 
 export interface Lead {
   id: string;
