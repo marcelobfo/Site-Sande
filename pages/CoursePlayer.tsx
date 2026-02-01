@@ -197,22 +197,33 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
                     allowFullScreen
                   ></iframe>
                 ) : (
-                   <div className="w-full h-full flex flex-col items-center justify-center gap-6 bg-gray-800/50">
-                      <div className="bg-gray-800 p-8 rounded-full text-gray-400 animate-pulse">
-                         <FileText size={64} />
-                      </div>
-                      <div className="text-center">
-                        <h3 className="text-2xl font-black text-white mb-2">{activeMaterial?.title}</h3>
-                        <p className="text-gray-400 mb-6">Este conteúdo é um arquivo para download ou link externo.</p>
-                        <a 
-                          href={activeMaterial?.url} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-3 bg-brand-purple text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-brand-dark transition-all"
-                        >
-                          <Download size={20} /> Acessar Material
-                        </a>
-                      </div>
+                   <div className="w-full h-full relative group">
+                      {/* Background Image with Blur */}
+                      <img 
+                        src={product.image_url} 
+                        className="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm transition-all group-hover:blur-none group-hover:opacity-60" 
+                        alt={product.title} 
+                      />
+                      <div className="absolute inset-0 bg-black/60"></div>
+
+                      {/* Content Overlay */}
+                      <div className="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 p-8">
+                          <div className="bg-gray-900/80 p-6 rounded-full text-gray-300 backdrop-blur-md border border-white/10 shadow-2xl">
+                             <FileText size={48} />
+                          </div>
+                          <div className="text-center max-w-2xl">
+                            <h3 className="text-2xl md:text-3xl font-black text-white mb-3 drop-shadow-lg">{activeMaterial?.title}</h3>
+                            <p className="text-gray-200 mb-8 font-medium drop-shadow-md">Este conteúdo é um arquivo para download ou link externo.</p>
+                            <a 
+                              href={activeMaterial?.url} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-3 bg-brand-purple text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-brand-dark transition-all shadow-xl hover:scale-105"
+                            >
+                              <Download size={20} /> Acessar Material
+                            </a>
+                          </div>
+                       </div>
                    </div>
                 )
               ) : (
@@ -268,7 +279,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
               <div className="min-h-[200px]">
                 {activeTab === 'overview' && (
                   <div className="prose prose-invert max-w-none">
-                    <p className="text-gray-400 leading-relaxed text-lg">
+                    <p className="text-gray-400 leading-relaxed text-lg whitespace-pre-line">
                       {product.description || "Sem descrição disponível para este curso."}
                     </p>
                   </div>
