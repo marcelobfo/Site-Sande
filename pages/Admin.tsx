@@ -5,7 +5,7 @@ import {
   FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type,
   Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers, Eye, EyeOff, Lock, Unlock, PlayCircle, MessageSquare
 } from 'lucide-react';
-import { SiteContent, Product, BlogPost, View, ProductMaterial } from '../types';
+import { SiteContent, Product, BlogPost, View, ProductMaterial, ForumTopic } from '../types';
 import { supabase } from '../lib/supabase';
 import { NotificationType } from '../components/Notification';
 
@@ -15,6 +15,7 @@ import { AdminProducts } from './admin/Products';
 import { AdminBlog } from './admin/Blog';
 import { AdminAppearance } from './admin/Appearance';
 import { AdminPayments } from './admin/Payments';
+import { AdminForum } from './admin/Forum'; // Novo Import
 import { AdminInput, ImageUp, Section } from '../components/admin/AdminShared';
 
 interface AdminProps {
@@ -24,7 +25,7 @@ interface AdminProps {
   notify: (type: NotificationType, title: string, message: string) => void;
 }
 
-type Tab = 'leads' | 'content_home' | 'content_about' | 'manage_store' | 'manage_blog' | 'settings' | 'payments';
+type Tab = 'leads' | 'content_home' | 'content_about' | 'manage_store' | 'manage_blog' | 'manage_forum' | 'settings' | 'payments';
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
@@ -42,6 +43,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
   const [leads, setLeads] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [topics, setTopics] = useState<ForumTopic[]>([]); // Estado para tópicos
   const [editItem, setEditItem] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,6 +66,10 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
     if (activeTab === 'manage_blog') {
       const { data } = await supabase.from('blog_posts').select('*').order('publish_date', { ascending: false });
       if (data) setPosts(data);
+    }
+    if (activeTab === 'manage_forum') {
+      const { data } = await supabase.from('forum_topics').select('*').order('created_at', { ascending: false });
+      if (data) setTopics(data);
     }
   };
 
@@ -185,6 +191,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
       case 'leads': return <AdminLeads leads={leads} onUpdate={fetchAllData} notify={notify} />;
       case 'manage_store': return <AdminProducts products={products} onEdit={(p) => { setEditItem({ ...p, payment_active: p.payment_active ?? true, forum_active: p.forum_active ?? false }); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('products').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Produto removido.'); } }} />;
       case 'manage_blog': return <AdminBlog posts={posts} onEdit={(p) => { setEditItem(p); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('blog_posts').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Post removido.'); } }} />;
+      case 'manage_forum': return <AdminForum topics={topics} onRefresh={fetchAllData} notify={notify} />;
       case 'settings': return <AdminAppearance form={form} setForm={setForm} onImageUpload={handleImageUpload} />;
       case 'payments': return <AdminPayments form={form} setForm={setForm} notify={notify} />;
       case 'content_home': return (
@@ -238,6 +245,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
           <SidebarItem id="leads" icon={<LayoutDashboard size={20} />} label="CRM de Leads" />
           <SidebarItem id="manage_store" icon={<Gem size={20} />} label="Vitrine & Loja" />
           <SidebarItem id="manage_blog" icon={<FileText size={20} />} label="Blog & Posts" />
+          <SidebarItem id="manage_forum" icon={<MessageSquare size={20} />} label="Comunidade" />
           <div className="h-px bg-gray-100 my-4 mx-2"></div>
           <SidebarItem id="content_home" icon={<HomeIcon size={20} />} label="Home & Clube" />
           <SidebarItem id="content_about" icon={<Info size={20} />} label="Sobre & Empresa" />
@@ -257,7 +265,8 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
               <h1 className="text-3xl font-black text-brand-dark uppercase tracking-tighter mb-1">
                 {activeTab === 'leads' ? 'Kanban de Leads' : 
                 activeTab === 'manage_store' ? 'Gestão da Vitrine' :
-                activeTab === 'manage_blog' ? 'Gestão do Blog' : 'Painel Master'}
+                activeTab === 'manage_blog' ? 'Gestão do Blog' :
+                activeTab === 'manage_forum' ? 'Gestão da Comunidade' : 'Painel Master'}
               </h1>
               <p className="text-gray-400 font-medium text-sm">Controle total da plataforma Lax.</p>
             </div>
