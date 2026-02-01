@@ -211,6 +211,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
               <div className="space-y-6">
                 <AdminInput label="Nome Clube" value={form.clubetitle} onChange={(v: string) => setForm({...form, clubetitle: v})} />
                 <AdminInput label="Preço" type="number" value={form.clubeprice} onChange={(v: string) => setForm({...form, clubeprice: Number(v)})} />
+                <AdminInput label="Descrição Curta" textarea value={form.clubedescription} onChange={(v: string) => setForm({...form, clubedescription: v})} />
               </div>
               <ImageUp label="Banner Clube" current={form.clubebannerimageurl} onUpload={(e: any) => handleImageUpload(e, 'clubebannerimageurl')} />
             </div>

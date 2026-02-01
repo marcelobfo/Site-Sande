@@ -3,6 +3,9 @@
 ALTER TABLE site_content ADD COLUMN IF NOT EXISTS homeherotitlesize numeric DEFAULT 6.5;
 UPDATE site_content SET homeherotitlesize = 6.5 WHERE id = 1 AND homeherotitlesize IS NULL;
 
+-- 1.1 Correção de Campos Faltantes
+ALTER TABLE site_content ADD COLUMN IF NOT EXISTS clubedescription text;
+
 -- 2. Suporte para Área de Membros
 ALTER TABLE products ADD COLUMN IF NOT EXISTS materials jsonb DEFAULT '[]'::jsonb;
 UPDATE products SET materials = '[]'::jsonb WHERE materials IS NULL;
