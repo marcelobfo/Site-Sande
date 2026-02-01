@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Settings, Save, Home as HomeIcon, CreditCard, LayoutDashboard, Plus, 
   FileText, Info, X, Loader2, Palette, Gem, LogOut, ShieldAlert, Link as LinkIcon, Type,
-  Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers, Eye, EyeOff, Lock, Unlock, PlayCircle
+  Youtube, HardDrive, Trash2, Video, GripVertical, Clock, Layers, Eye, EyeOff, Lock, Unlock, PlayCircle, MessageSquare
 } from 'lucide-react';
 import { SiteContent, Product, BlogPost, View, ProductMaterial } from '../types';
 import { supabase } from '../lib/supabase';
@@ -115,6 +115,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
         payload.featured_video_url = editItem.featured_video_url; // Novo campo
         payload.status = editItem.status || 'published'; 
         payload.payment_active = editItem.payment_active !== false; 
+        payload.forum_active = editItem.forum_active === true; // Novo campo
         payload.materials = editItem.materials && Array.isArray(editItem.materials) ? editItem.materials : [];
       } else {
         payload.content = editItem.content;
@@ -182,7 +183,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
   const renderContent = () => {
     switch (activeTab) {
       case 'leads': return <AdminLeads leads={leads} onUpdate={fetchAllData} notify={notify} />;
-      case 'manage_store': return <AdminProducts products={products} onEdit={(p) => { setEditItem({ ...p, payment_active: p.payment_active ?? true }); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('products').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Produto removido.'); } }} />;
+      case 'manage_store': return <AdminProducts products={products} onEdit={(p) => { setEditItem({ ...p, payment_active: p.payment_active ?? true, forum_active: p.forum_active ?? false }); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('products').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Produto removido.'); } }} />;
       case 'manage_blog': return <AdminBlog posts={posts} onEdit={(p) => { setEditItem(p); setIsModalOpen(true); }} onDelete={async (id) => { if(confirm("Excluir?")){ await supabase.from('blog_posts').delete().eq('id', id); fetchAllData(); notify('success', 'Excluído', 'Post removido.'); } }} />;
       case 'settings': return <AdminAppearance form={form} setForm={setForm} onImageUpload={handleImageUpload} />;
       case 'payments': return <AdminPayments form={form} setForm={setForm} notify={notify} />;
@@ -267,7 +268,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                 </button>
               )}
               {(activeTab === 'manage_store' || activeTab === 'manage_blog') && (
-                <button onClick={() => { setEditItem({ status: 'published', payment_active: true }); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:bg-brand-dark transition-all">
+                <button onClick={() => { setEditItem({ status: 'published', payment_active: true, forum_active: false }); setIsModalOpen(true); }} className="bg-brand-orange text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 hover:bg-brand-dark transition-all">
                   <Plus size={20} /> NOVO
                 </button>
               )}
@@ -315,20 +316,38 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                        <AdminInput label="Categoria" value={editItem.category} onChange={(v: string) => setEditItem({...editItem, category: v})} required />
-                       {/* Toggle de Link de Pagamento */}
-                       <div className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${editItem.payment_active !== false ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-200'}`} onClick={() => setEditItem({...editItem, payment_active: editItem.payment_active === false})}>
-                          <div className="flex items-center gap-3">
-                             <div className={`p-2 rounded-xl text-white ${editItem.payment_active !== false ? 'bg-green-500' : 'bg-gray-400'}`}>
-                               {editItem.payment_active !== false ? <Unlock size={16} /> : <Lock size={16} />}
-                             </div>
-                             <div>
-                               <p className="text-xs font-black uppercase tracking-wide text-brand-dark">Link de Pagamento</p>
-                               <p className="text-[10px] font-bold text-gray-500">{editItem.payment_active !== false ? 'Ativo (Vendas Abertas)' : 'Inativo (Em Breve)'}</p>
-                             </div>
-                          </div>
-                          <div className={`w-10 h-6 rounded-full relative transition-colors ${editItem.payment_active !== false ? 'bg-green-500' : 'bg-gray-300'}`}>
-                             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${editItem.payment_active !== false ? 'right-1' : 'left-1'}`}></div>
-                          </div>
+                       <div className="flex gap-4">
+                         {/* Toggle de Link de Pagamento */}
+                         <div className={`flex-1 p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${editItem.payment_active !== false ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-200'}`} onClick={() => setEditItem({...editItem, payment_active: editItem.payment_active === false})}>
+                            <div className="flex items-center gap-3">
+                               <div className={`p-2 rounded-xl text-white ${editItem.payment_active !== false ? 'bg-green-500' : 'bg-gray-400'}`}>
+                                 {editItem.payment_active !== false ? <Unlock size={16} /> : <Lock size={16} />}
+                               </div>
+                               <div>
+                                 <p className="text-[10px] font-black uppercase tracking-wide text-brand-dark">Vendas</p>
+                                 <p className="text-[9px] font-bold text-gray-500">{editItem.payment_active !== false ? 'Abertas' : 'Fechadas'}</p>
+                               </div>
+                            </div>
+                            <div className={`w-8 h-5 rounded-full relative transition-colors ${editItem.payment_active !== false ? 'bg-green-500' : 'bg-gray-300'}`}>
+                               <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${editItem.payment_active !== false ? 'right-1' : 'left-1'}`}></div>
+                            </div>
+                         </div>
+
+                         {/* Toggle de Fórum/Comunidade */}
+                         <div className={`flex-1 p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${editItem.forum_active ? 'bg-brand-purple/10 border-brand-purple/30' : 'bg-gray-100 border-gray-200'}`} onClick={() => setEditItem({...editItem, forum_active: !editItem.forum_active})}>
+                            <div className="flex items-center gap-3">
+                               <div className={`p-2 rounded-xl text-white ${editItem.forum_active ? 'bg-brand-purple' : 'bg-gray-400'}`}>
+                                 <MessageSquare size={16} />
+                               </div>
+                               <div>
+                                 <p className="text-[10px] font-black uppercase tracking-wide text-brand-dark">Comunidade</p>
+                                 <p className="text-[9px] font-bold text-gray-500">{editItem.forum_active ? 'Ativa' : 'Inativa'}</p>
+                               </div>
+                            </div>
+                            <div className={`w-8 h-5 rounded-full relative transition-colors ${editItem.forum_active ? 'bg-brand-purple' : 'bg-gray-300'}`}>
+                               <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${editItem.forum_active ? 'right-1' : 'left-1'}`}></div>
+                            </div>
+                         </div>
                        </div>
                     </div>
                     <div className="space-y-3">

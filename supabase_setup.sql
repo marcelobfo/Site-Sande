@@ -9,6 +9,7 @@ UPDATE products SET materials = '[]'::jsonb WHERE materials IS NULL;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS download_url text;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS status text DEFAULT 'published';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS payment_active boolean DEFAULT true;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS forum_active boolean DEFAULT false;
 
 -- 3. Vídeo em Destaque do Produto (Instruções)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_video_url text;
@@ -34,7 +35,7 @@ BEGIN
 END;
 $$;
 
--- 5. Estrutura do Fórum (Comunidade)
+-- 5. Estrutura do Fórum (Comunidade Global)
 
 -- Tabela de Tópicos
 CREATE TABLE IF NOT EXISTS forum_topics (
@@ -58,7 +59,7 @@ CREATE TABLE IF NOT EXISTS forum_posts (
   is_admin boolean DEFAULT false
 );
 
--- Tabela de Enquetes (Polls) - 1 por tópico (opcional)
+-- Tabela de Enquetes (Polls)
 CREATE TABLE IF NOT EXISTS forum_polls (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   topic_id uuid REFERENCES forum_topics(id) ON DELETE CASCADE,
@@ -82,14 +83,40 @@ CREATE TABLE IF NOT EXISTS forum_poll_votes (
   UNIQUE(poll_id, user_email) -- Um voto por pessoa por enquete
 );
 
--- Habilitar Realtime para o Fórum
-ALTER PUBLICATION supabase_realtime ADD TABLE forum_topics;
-ALTER PUBLICATION supabase_realtime ADD TABLE forum_posts;
-ALTER PUBLICATION supabase_realtime ADD TABLE forum_poll_votes;
+-- 6. Estrutura da Comunidade Específica do Produto (Novo)
+CREATE TABLE IF NOT EXISTS product_forum_messages (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  product_id text NOT NULL, -- Ligado ao ID do produto
+  user_email text NOT NULL,
+  user_name text NOT NULL,
+  content text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  reactions jsonb DEFAULT '{}'::jsonb, -- { "emoji": ["email1", "email2"] }
+  reply_to uuid REFERENCES product_forum_messages(id)
+);
 
--- 6. Criar Produto Principal (Clube) para Vinculação Correta
--- ID: 9e30a57d-14a0-4386-8a5f-0f8a85f40000 (UUID válido para evitar erro de tipo)
-INSERT INTO products (id, title, description, price, category, image_url, status, payment_active)
+-- Habilitar Realtime (Safe Execution)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_topics') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE forum_topics;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_posts') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE forum_posts;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_poll_votes') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE forum_poll_votes;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'product_forum_messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE product_forum_messages;
+  END IF;
+END $$;
+
+-- 7. Criar Produto Principal (Clube) para Vinculação Correta
+INSERT INTO products (id, title, description, price, category, image_url, status, payment_active, forum_active)
 VALUES (
   '9e30a57d-14a0-4386-8a5f-0f8a85f40000',
   'Clube Professora Protagonista',
@@ -98,5 +125,11 @@ VALUES (
   'Assinatura',
   'https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png',
   'published',
+  true,
   true
 ) ON CONFLICT (id) DO NOTHING;
+
+-- 8. Correção de Dados Legados
+UPDATE leads 
+SET product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000' 
+WHERE product_id = 'CLUBE-ANUAL';

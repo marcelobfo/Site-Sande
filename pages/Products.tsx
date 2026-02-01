@@ -104,6 +104,8 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           token: apiKey,
           environment: isSandbox ? 'sandbox' : 'production',
           asaas_base_url: asaasBaseUrl,
+          // CRÍTICO: Envia o ID do Lead como referência externa para o Asaas devolver no Webhook
+          externalReference: createdLeadId, 
           customer: { 
             name: customerData.name,
             email: customerData.email,
@@ -114,7 +116,8 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
             postalCode: customerData.postalCode.replace(/\D/g, ''),
             province: customerData.province,
             city: customerData.city,
-            complement: customerData.complement
+            complement: customerData.complement,
+            externalReference: createdLeadId // Redundância para garantir
           },
           product: { 
             id: CLUB_ID, 

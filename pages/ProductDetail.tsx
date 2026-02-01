@@ -108,6 +108,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           token: apiKey,
           environment: isSandbox ? 'sandbox' : 'production',
           asaas_base_url: asaasBaseUrl, // Enviando a base da URL conforme solicitado
+          externalReference: createdLeadId, // Importante: Liga o Lead ao Pagamento Asaas
           customer: { 
             name: customerData.name,
             email: customerData.email,
@@ -118,7 +119,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
             postalCode: customerData.postalCode.replace(/\D/g, ''),
             province: customerData.province,
             city: customerData.city,
-            complement: customerData.complement
+            complement: customerData.complement,
+            externalReference: createdLeadId // Redundância para garantir
           },
           product: { 
             id: product.id, 

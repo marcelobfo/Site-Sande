@@ -23,7 +23,19 @@ export interface Product {
   features?: string[];
   status?: 'published' | 'draft'; // Novo campo de status
   payment_active?: boolean; // Se false, mostra "Em Breve" e bloqueia compra
+  forum_active?: boolean; // Se true, exibe a aba Comunidade no player
   created_at?: string;
+}
+
+export interface ProductForumMessage {
+  id: string;
+  product_id: string;
+  user_email: string;
+  user_name: string;
+  content: string;
+  created_at: string;
+  reactions: Record<string, string[]>; // { "❤️": ["email1", "email2"], "😂": ["email1"] }
+  reply_to?: string;
 }
 
 export interface AsaasCustomerData {
@@ -109,7 +121,7 @@ export interface Lead {
   created_at: string;
 }
 
-// Forum Types
+// Forum Types (Global Forum)
 export interface ForumTopic {
   id: string;
   title: string;

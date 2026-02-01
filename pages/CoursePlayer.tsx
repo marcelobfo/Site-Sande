@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { PlayCircle, FileText, ChevronLeft, Menu, CheckCircle2, Lock, Download, MessageCircle, Share2, LogOut, Layout, Video, ChevronRight, X, Info } from 'lucide-react';
-import { View, Product, ProductMaterial, SiteContent } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { PlayCircle, FileText, ChevronLeft, Menu, CheckCircle2, Lock, Download, MessageCircle, Share2, LogOut, Layout, Video, ChevronRight, X, Info, Send, Smile } from 'lucide-react';
+import { View, Product, ProductMaterial, SiteContent, ProductForumMessage } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
 
@@ -17,8 +17,13 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
   const [activeMaterial, setActiveMaterial] = useState<ProductMaterial | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'support'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'support' | 'forum'>('overview');
   const [showingFeaturedVideo, setShowingFeaturedVideo] = useState(false);
+
+  // Forum State
+  const [messages, setMessages] = useState<ProductForumMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!productId) {
@@ -49,6 +54,74 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
 
     fetchProduct();
   }, [productId, onNavigate]);
+
+  useEffect(() => {
+    if (activeTab === 'forum' && productId) {
+      fetchMessages();
+      
+      const channel = supabase
+        .channel(`product_forum:${productId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'product_forum_messages', filter: `product_id=eq.${productId}` }, (payload) => {
+           if (payload.eventType === 'INSERT') {
+             setMessages(prev => [...prev, payload.new as ProductForumMessage]);
+             setTimeout(scrollToBottom, 100);
+           } else if (payload.eventType === 'UPDATE') {
+             setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new as ProductForumMessage : m));
+           }
+        })
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [activeTab, productId]);
+
+  const fetchMessages = async () => {
+    if (!productId) return;
+    const { data } = await supabase.from('product_forum_messages').select('*').eq('product_id', productId).order('created_at', { ascending: true });
+    if (data) {
+      setMessages(data);
+      setTimeout(scrollToBottom, 100);
+    }
+  };
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !user || !productId) return;
+
+    await supabase.from('product_forum_messages').insert([{
+      product_id: productId,
+      user_email: user.email,
+      user_name: user.email.split('@')[0],
+      content: newMessage,
+      reactions: {}
+    }]);
+
+    setNewMessage('');
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message || !user) return;
+
+    const currentReactions = message.reactions || {};
+    const usersReacted = currentReactions[emoji] || [];
+    
+    let newReactions;
+    if (usersReacted.includes(user.email)) {
+      // Remove reaction
+      newReactions = { ...currentReactions, [emoji]: usersReacted.filter(e => e !== user.email) };
+      if (newReactions[emoji].length === 0) delete newReactions[emoji];
+    } else {
+      // Add reaction
+      newReactions = { ...currentReactions, [emoji]: [...usersReacted, user.email] };
+    }
+
+    await supabase.from('product_forum_messages').update({ reactions: newReactions }).eq('id', messageId);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -255,22 +328,30 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
 
             {/* Tabs Content */}
             <div>
-              <div className="flex gap-8 border-b border-gray-800 mb-8">
+              <div className="flex gap-8 border-b border-gray-800 mb-8 overflow-x-auto no-scrollbar">
                 <button 
                   onClick={() => setActiveTab('overview')}
-                  className={`pb-4 text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-gray-500 hover:text-white'}`}
+                  className={`pb-4 text-sm font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'overview' ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-gray-500 hover:text-white'}`}
                 >
                   Visão Geral
                 </button>
                 <button 
                   onClick={() => setActiveTab('files')}
-                  className={`pb-4 text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'files' ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-gray-500 hover:text-white'}`}
+                  className={`pb-4 text-sm font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'files' ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-gray-500 hover:text-white'}`}
                 >
                   Arquivos
                 </button>
+                {product.forum_active && (
+                  <button 
+                    onClick={() => setActiveTab('forum')}
+                    className={`pb-4 text-sm font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'forum' ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-gray-500 hover:text-white'}`}
+                  >
+                    Comunidade <span className="bg-brand-purple/20 px-2 py-0.5 rounded text-[9px] font-bold text-brand-purple hidden md:inline-block">BETA</span>
+                  </button>
+                )}
                 <button 
                   onClick={() => setActiveTab('support')}
-                  className={`pb-4 text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'support' ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-gray-500 hover:text-white'}`}
+                  className={`pb-4 text-sm font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'support' ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-gray-500 hover:text-white'}`}
                 >
                   Suporte & Dúvidas
                 </button>
@@ -312,6 +393,78 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
                      {(!activeMaterial || (activeMaterial.type === 'video' && !product.download_url)) && (
                         <p className="text-gray-500 italic">Nenhum arquivo anexado a esta aula.</p>
                      )}
+                  </div>
+                )}
+
+                {activeTab === 'forum' && (
+                  <div className="bg-gray-950 rounded-3xl border border-gray-800 overflow-hidden flex flex-col h-[600px]">
+                    <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-6">
+                      {messages.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                          <MessageCircle size={48} className="mb-4 opacity-20" />
+                          <p className="font-medium text-sm">Seja o primeiro a comentar nesta aula!</p>
+                        </div>
+                      ) : (
+                        messages.map(msg => (
+                          <div key={msg.id} className="flex gap-4 group">
+                            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-brand-lilac font-black text-sm shrink-0 border border-gray-700">
+                              {msg.user_name[0].toUpperCase()}
+                            </div>
+                            <div className="flex-grow">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-white text-sm">{msg.user_name}</span>
+                                <span className="text-[10px] text-gray-500">{new Date(msg.created_at).toLocaleDateString()}</span>
+                              </div>
+                              <div className="bg-gray-800/50 p-4 rounded-2xl rounded-tl-none border border-gray-700 text-gray-300 text-sm leading-relaxed">
+                                {msg.content}
+                              </div>
+                              <div className="flex gap-2 mt-2">
+                                {['👍', '❤️', '😂', '👏', '🔥'].map(emoji => {
+                                  const count = msg.reactions?.[emoji]?.length || 0;
+                                  const userReacted = msg.reactions?.[emoji]?.includes(user.email);
+                                  if (count === 0) return null;
+                                  return (
+                                    <button 
+                                      key={emoji}
+                                      onClick={() => handleReaction(msg.id, emoji)}
+                                      className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 border transition-all ${userReacted ? 'bg-brand-purple/20 border-brand-purple text-brand-lilac' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
+                                    >
+                                      {emoji} {count}
+                                    </button>
+                                  );
+                                })}
+                                <div className="relative group/emoji">
+                                  <button className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-white p-1">
+                                    <Smile size={16} />
+                                  </button>
+                                  <div className="absolute bottom-full left-0 mb-2 bg-gray-800 border border-gray-700 rounded-xl p-2 flex gap-1 hidden group-hover/emoji:flex shadow-xl z-10">
+                                    {['👍', '❤️', '😂', '👏', '🔥'].map(emoji => (
+                                      <button key={emoji} onClick={() => handleReaction(msg.id, emoji)} className="hover:bg-gray-700 p-1.5 rounded-lg transition-colors text-lg">
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+                    <div className="p-4 bg-gray-900 border-t border-gray-800">
+                      <form onSubmit={handleSendMessage} className="flex gap-3">
+                        <input 
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          placeholder="Digite sua mensagem, dúvida ou feedback..." 
+                          className="flex-grow bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-brand-purple outline-none transition-colors"
+                        />
+                        <button type="submit" disabled={!newMessage.trim()} className="bg-brand-purple text-white p-3 rounded-xl hover:bg-brand-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                          <Send size={20} />
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 )}
 
