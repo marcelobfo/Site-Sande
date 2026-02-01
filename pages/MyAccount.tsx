@@ -316,7 +316,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 space-y-16">
+      <div className={`max-w-7xl mx-auto px-4 space-y-16 ${!hasActiveClub ? 'mt-12' : ''}`}>
         
         {/* SEÇÃO 1: MEUS MATERIAIS (COMPRADOS) */}
         <div>
