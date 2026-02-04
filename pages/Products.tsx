@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown, CheckCircle2, ShieldCheck, Zap, Lock } from 'lucide-react';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown, CheckCircle2, ShieldCheck, Zap, Lock, Plus } from 'lucide-react';
 import { View, SiteContent, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
+import { ProductCover } from '../components/ProductCover';
 
 interface ProductsProps {
   onNavigate: (view: View, id?: string) => void;
@@ -10,12 +10,21 @@ interface ProductsProps {
   notify?: (type: any, title: string, message: string) => void;
 }
 
+const ITEMS_PER_PAGE = 12;
+
 export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify }) => {
   const [activeTab, setActiveTab] = useState('Todos');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // Estado otimizado para paginação
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const [categories, setCategories] = useState<string[]>(['Todos']); // Categorias carregadas separadamente
+
   const [payingClub, setPayingClub] = useState(false);
   const [showClubBillingForm, setShowClubBillingForm] = useState(false);
   const [clubError, setClubError] = useState<{ message: string; type: 'api' | 'cors' | 'config' | null } | null>(null);
@@ -35,19 +44,16 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     city: ''
   });
 
+  // Carregar Categorias (uma única vez)
   useEffect(() => {
-    const fetchProducts = async () => {
-      // Filtrar apenas produtos com status 'published'
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('status', 'published') // Filtro adicionado
-        .order('created_at', { ascending: false });
-      
-      if (data && !error) setProducts(data);
-      setLoading(false);
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('products').select('category').eq('status', 'published');
+      if (data) {
+        const uniqueCats = Array.from(new Set(data.map((p: any) => String(p.category))));
+        setCategories(['Todos', ...uniqueCats]);
+      }
     };
-    fetchProducts();
+    fetchCategories();
 
     const handleClickOutside = (event: MouseEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
@@ -57,6 +63,63 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch de Produtos com Paginação
+  const fetchProducts = async (pageNumber: number, category: string, isLoadMore: boolean = false) => {
+    if (!isLoadMore) setLoading(true);
+    else setLoadingMore(true);
+
+    try {
+      let query = supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .range(pageNumber * ITEMS_PER_PAGE, (pageNumber + 1) * ITEMS_PER_PAGE - 1);
+
+      if (category !== 'Todos') {
+        query = query.eq('category', category);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      if (data) {
+        if (isLoadMore) {
+          setProducts(prev => [...prev, ...data]);
+        } else {
+          setProducts(data);
+        }
+        
+        // Verifica se alcançou o fim
+        if (data.length < ITEMS_PER_PAGE) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao buscar produtos:", err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Resetar e buscar quando mudar a aba
+  useEffect(() => {
+    setPage(0);
+    setHasMore(true);
+    setProducts([]); // Limpa visualmente para dar feedback de carregamento da nova categoria
+    fetchProducts(0, activeTab, false);
+  }, [activeTab]);
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchProducts(nextPage, activeTab, true);
+  };
 
   const handleClubCheckout = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -104,7 +167,6 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
           token: apiKey,
           environment: isSandbox ? 'sandbox' : 'production',
           asaas_base_url: asaasBaseUrl,
-          // CRÍTICO: Envia o ID do Lead como referência externa para o Asaas devolver no Webhook
           externalReference: createdLeadId, 
           customer: { 
             name: customerData.name,
@@ -117,7 +179,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
             province: customerData.province,
             city: customerData.city,
             complement: customerData.complement,
-            externalReference: createdLeadId // Redundância para garantir
+            externalReference: createdLeadId
           },
           product: { 
             id: CLUB_ID, 
@@ -137,13 +199,10 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
         const rawData = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(rawData.message || `Erro ${response.status}`);
 
-        // Tratamento Robusto de Resposta do Asaas/n8n
         const asaasData = Array.isArray(rawData) ? rawData[0] : rawData;
-        // Verifica se os dados estão dentro de 'body', 'data' ou na raiz
         const finalData = asaasData?.body || asaasData?.data || asaasData;
         
         const asaasId = finalData?.id || finalData?.payment_link_id;
-        // Adicionado 'payment_url' na verificação
         const checkoutUrl = finalData?.url || finalData?.invoiceUrl || finalData?.paymentLink || finalData?.payment_url;
 
         if (checkoutUrl) {
@@ -178,11 +237,6 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     setCustomerData({ ...customerData, [e.target.name]: e.target.value });
   };
 
-  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
-  const filteredProducts = activeTab === 'Todos' 
-    ? products 
-    : products.filter(p => p.category === activeTab);
-
   return (
     <div className="bg-brand-cream/30 pb-16 md:pb-24">
       {/* Banner Clube Premium Redesigned */}
@@ -201,6 +255,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
                 src={content.clubebannerimageurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png"} 
                 className="absolute inset-0 w-full h-full object-cover object-center lg:object-right transform hover:scale-105 transition-transform duration-[2s]" 
                 alt="Clube" 
+                loading="lazy"
               />
               <div className="absolute top-6 left-6 z-20 bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                 <Star size={12} className="text-brand-orange" fill="currentColor" /> Recomendado
@@ -337,7 +392,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
 
             {isFilterOpen && (
               <div className="absolute top-[calc(100%+10px)] left-0 right-0 z-50 bg-white rounded-2xl shadow-3xl border border-brand-lilac/5 overflow-hidden">
-                <div className="py-2">
+                <div className="py-2 max-h-60 overflow-y-auto">
                   {categories.map(cat => (
                     <button 
                       key={cat} 
@@ -354,12 +409,12 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
 
           {/* Desktop Filter Pills */}
           <div className="hidden md:block bg-white px-6 py-4 rounded-full shadow-sm border border-brand-lilac/10">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 overflow-x-auto max-w-full no-scrollbar">
               {categories.map(cat => (
                 <button 
                   key={cat} 
                   onClick={() => setActiveTab(cat)} 
-                  className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === cat ? 'bg-brand-purple text-white' : 'text-gray-400 hover:text-brand-purple'}`}
+                  className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === cat ? 'bg-brand-purple text-white' : 'text-gray-400 hover:text-brand-purple'}`}
                 >
                   {cat}
                 </button>
@@ -371,53 +426,77 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
         {loading ? (
           <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-brand-purple" size={48} /></div>
         ) : (
-          <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10" : "max-w-4xl mx-auto space-y-4"}>
-            {filteredProducts.map(product => {
-              const isPaymentActive = product.payment_active !== false;
-              
-              return viewMode === 'grid' ? (
-                <div key={product.id} className="group bg-white rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-lg border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
-                  <div className="relative aspect-square overflow-hidden p-2">
-                    <div className="w-full h-full rounded-[1.8rem] overflow-hidden relative">
-                      <img src={product.image_url} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ${!isPaymentActive ? 'grayscale-[0.5]' : ''}`} alt={product.title} />
-                      <div className="absolute top-3 left-3 bg-brand-purple/90 backdrop-blur-md text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20">
-                        {product.category}
+          <>
+            <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10" : "max-w-4xl mx-auto space-y-4"}>
+              {products.map(product => {
+                const isPaymentActive = product.payment_active !== false;
+                
+                return viewMode === 'grid' ? (
+                  <div key={product.id} className="group bg-white rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-lg border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
+                    <div className="relative aspect-square overflow-hidden p-2">
+                      <div className="w-full h-full rounded-[1.8rem] overflow-hidden relative">
+                        <ProductCover 
+                          src={product.image_url} 
+                          alt={product.title}
+                          category={product.category}
+                          className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ${!isPaymentActive ? 'grayscale-[0.5]' : ''}`} 
+                        />
+                        {!isPaymentActive && (
+                          <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
+                             <span className="bg-white/90 text-gray-800 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-md">
+                               <Lock size={14}/> Em Breve
+                             </span>
+                          </div>
+                        )}
                       </div>
-                      {!isPaymentActive && (
-                        <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
-                           <span className="bg-white/90 text-gray-800 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-md">
-                             <Lock size={14}/> Em Breve
-                           </span>
-                        </div>
-                      )}
+                    </div>
+                    <div className="p-6 md:p-8 flex-grow flex flex-col">
+                      <h3 className="text-lg md:text-xl font-black text-brand-dark mb-4 leading-tight group-hover:text-brand-purple transition-colors line-clamp-2">{product.title}</h3>
+                      <div className="flex items-center gap-3 mt-auto">
+                         <p className="text-xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
+                         {product.old_price && <span className="text-xs text-gray-300 font-bold line-through">R$ {Number(product.old_price).toFixed(2)}</span>}
+                      </div>
+                      <button className="mt-4 w-full bg-gray-50 text-brand-purple py-4 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={16} /></button>
                     </div>
                   </div>
-                  <div className="p-6 md:p-8 flex-grow flex flex-col">
-                    <h3 className="text-lg md:text-xl font-black text-brand-dark mb-4 leading-tight group-hover:text-brand-purple transition-colors line-clamp-2">{product.title}</h3>
-                    <div className="flex items-center gap-3 mt-auto">
-                       <p className="text-xl font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
-                       {product.old_price && <span className="text-xs text-gray-300 font-bold line-through">R$ {Number(product.old_price).toFixed(2)}</span>}
+                ) : (
+                  <div key={product.id} className="group bg-white p-4 md:p-6 rounded-[2rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-4 md:gap-6 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
+                    <div className="w-16 h-16 md:w-20 md:h-20 shrink-0">
+                      <ProductCover 
+                        src={product.image_url} 
+                        alt={product.title}
+                        category={product.category}
+                        className={`w-full h-full rounded-2xl object-cover ${!isPaymentActive ? 'grayscale' : ''}`}
+                      />
                     </div>
-                    <button className="mt-4 w-full bg-gray-50 text-brand-purple py-4 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-brand-purple group-hover:text-white transition-all flex items-center justify-center gap-2">VER DETALHES <ArrowUpRight size={16} /></button>
-                  </div>
-                </div>
-              ) : (
-                <div key={product.id} className="group bg-white p-4 md:p-6 rounded-[2rem] shadow-md hover:shadow-xl transition-all border border-brand-lilac/5 flex items-center gap-4 md:gap-6 cursor-pointer" onClick={() => onNavigate('product-detail', product.id)}>
-                  <img src={product.image_url} className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shrink-0 ${!isPaymentActive ? 'grayscale' : ''}`} alt="" />
-                  <div className="flex-grow min-w-0">
-                    <h3 className="text-sm md:text-lg font-black text-brand-dark truncate group-hover:text-brand-purple transition-colors">{product.title}</h3>
-                    <div className="flex items-center gap-3">
-                       <p className="text-xs font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
-                       {!isPaymentActive && <span className="text-[9px] font-black text-gray-400 uppercase bg-gray-100 px-2 py-0.5 rounded-md">Em Breve</span>}
+                    <div className="flex-grow min-w-0">
+                      <h3 className="text-sm md:text-lg font-black text-brand-dark truncate group-hover:text-brand-purple transition-colors">{product.title}</h3>
+                      <div className="flex items-center gap-3">
+                         <p className="text-xs font-black text-brand-purple">R$ {Number(product.price).toFixed(2)}</p>
+                         {!isPaymentActive && <span className="text-[9px] font-black text-gray-400 uppercase bg-gray-100 px-2 py-0.5 rounded-md">Em Breve</span>}
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center group-hover:bg-brand-orange group-hover:text-white transition-all">
+                       <ArrowRight size={18} />
                     </div>
                   </div>
-                  <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center group-hover:bg-brand-orange group-hover:text-white transition-all">
-                     <ArrowRight size={18} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {hasMore && (
+              <div className="mt-12 text-center">
+                <button 
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="bg-white border-2 border-brand-lilac/20 text-brand-purple px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand-lilac/10 transition-all flex items-center gap-2 mx-auto disabled:opacity-50"
+                >
+                  {loadingMore ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />} 
+                  {loadingMore ? 'Carregando...' : 'Carregar Mais'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 

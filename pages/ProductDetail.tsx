@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, ShoppingCart, ShieldCheck, Zap, Loader2, X, Us
 import { Product, View, SiteContent, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
+import { ProductCover } from '../components/ProductCover';
 
 interface ProductDetailProps {
   productId: string | null;
@@ -208,13 +209,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
           {/* Coluna da Imagem */}
           <div className="lg:sticky lg:top-24 w-full">
             <div className="bg-white p-3 rounded-[2.5rem] shadow-3xl border border-white relative">
-              <img 
-                src={product.image_url} 
-                className={`w-full rounded-[2rem] aspect-square object-cover ${!isPaymentActive ? 'grayscale-[0.3]' : ''}`}
-                alt={product.title} 
-              />
-              <div className="absolute top-8 left-8 bg-brand-orange text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
-                {product.category}
+              <div className="w-full rounded-[2rem] aspect-square overflow-hidden relative">
+                <ProductCover 
+                  src={product.image_url} 
+                  alt={product.title}
+                  category={product.category}
+                  className={`w-full h-full object-cover ${!isPaymentActive ? 'grayscale-[0.3]' : ''}`}
+                />
               </div>
               {!isPaymentActive && (
                 <div className="absolute bottom-8 right-8 bg-gray-800 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl flex items-center gap-2">

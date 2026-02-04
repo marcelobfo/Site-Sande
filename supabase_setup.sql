@@ -17,6 +17,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS forum_active boolean DEFAULT false
 
 -- 3. Vídeo em Destaque do Produto (Instruções)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_video_url text;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_video_type text DEFAULT 'youtube'; -- Novo campo
 
 -- 4. Função de Segurança para Gerenciar Admins
 CREATE OR REPLACE FUNCTION set_admin_role(target_email text, is_admin boolean)
@@ -40,8 +41,6 @@ END;
 $$;
 
 -- 5. Estrutura do Fórum (Comunidade Global)
-
--- Tabela de Tópicos
 CREATE TABLE IF NOT EXISTS forum_topics (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title text NOT NULL,
@@ -52,7 +51,6 @@ CREATE TABLE IF NOT EXISTS forum_topics (
   likes int DEFAULT 0
 );
 
--- Tabela de Mensagens (Posts)
 CREATE TABLE IF NOT EXISTS forum_posts (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   topic_id uuid REFERENCES forum_topics(id) ON DELETE CASCADE,
@@ -63,7 +61,6 @@ CREATE TABLE IF NOT EXISTS forum_posts (
   is_admin boolean DEFAULT false
 );
 
--- Tabela de Enquetes (Polls)
 CREATE TABLE IF NOT EXISTS forum_polls (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   topic_id uuid REFERENCES forum_topics(id) ON DELETE CASCADE,
@@ -71,55 +68,170 @@ CREATE TABLE IF NOT EXISTS forum_polls (
   created_at timestamptz DEFAULT now()
 );
 
--- Opções da Enquete
 CREATE TABLE IF NOT EXISTS forum_poll_options (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   poll_id uuid REFERENCES forum_polls(id) ON DELETE CASCADE,
   option_text text NOT NULL
 );
 
--- Votos da Enquete
 CREATE TABLE IF NOT EXISTS forum_poll_votes (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   poll_id uuid REFERENCES forum_polls(id) ON DELETE CASCADE,
   option_id uuid REFERENCES forum_poll_options(id) ON DELETE CASCADE,
   user_email text NOT NULL,
-  UNIQUE(poll_id, user_email) -- Um voto por pessoa por enquete
+  UNIQUE(poll_id, user_email)
 );
 
--- 6. Estrutura da Comunidade Específica do Produto (Novo)
+-- 6. Estrutura da Comunidade Específica do Produto
 CREATE TABLE IF NOT EXISTS product_forum_messages (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  product_id text NOT NULL, -- Ligado ao ID do produto
+  product_id text NOT NULL,
   user_email text NOT NULL,
   user_name text NOT NULL,
   content text NOT NULL,
   created_at timestamptz DEFAULT now(),
-  reactions jsonb DEFAULT '{}'::jsonb, -- { "emoji": ["email1", "email2"] }
+  reactions jsonb DEFAULT '{}'::jsonb,
   reply_to uuid REFERENCES product_forum_messages(id)
 );
 
--- Habilitar Realtime (Safe Execution)
+-- 7. Blog Posts (Criação da Tabela e Inserção de Conteúdo)
+CREATE TABLE IF NOT EXISTS blog_posts (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title text NOT NULL,
+  content text NOT NULL,
+  author text NOT NULL,
+  category text NOT NULL,
+  image_url text,
+  publish_date date DEFAULT CURRENT_DATE,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Habilitar Realtime
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_topics') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE forum_topics;
   END IF;
-  
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_posts') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE forum_posts;
   END IF;
-
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_poll_votes') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE forum_poll_votes;
   END IF;
-
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'product_forum_messages') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE product_forum_messages;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'blog_posts') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE blog_posts;
+  END IF;
 END $$;
 
--- 7. Criar Produto Principal (Clube) para Vinculação Correta
+-- 8. Inserção de Artigos do Blog (Conteúdo Rico)
+DELETE FROM blog_posts; -- Limpa posts antigos para reinserir os novos corretamente
+
+INSERT INTO blog_posts (title, category, author, image_url, publish_date, content)
+VALUES
+(
+  '3 Metodologias Ativas para aplicar amanhã na sua aula',
+  'Metodologias Ativas',
+  'Sande Almeida',
+  'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=1000&auto=format&fit=crop',
+  CURRENT_DATE,
+  '# Transforme sua aula sem complicação
+
+Professora, eu sei que às vezes a rotina escolar nos consome e a ideia de "inovar" parece sinônimo de "trabalho extra". Mas a verdade sobre as **Metodologias Ativas** é que elas existem para *facilitar* a sua vida e engajar seus alunos, não para te sobrecarregar.
+
+Hoje, trago 3 estratégias simples que você pode aplicar já na sua próxima aula, sem precisar de tecnologias complexas.
+
+## 1. Rotação por Estações (Adaptada)
+
+Você não precisa de tablets em todas as mesas. O conceito aqui é **movimento**.
+*   **Estação 1:** Leitura de um texto curto (pode ser o livro didático).
+*   **Estação 2:** Discussão em dupla sobre uma pergunta chave.
+*   **Estação 3:** Criação de um desenho ou mapa mental sobre o tema.
+
+Divida a turma, marque 15 minutos e faça-os rodar. O simples fato de mudar de lugar e de estímulo já desperta o cérebro!
+
+## 2. Sala de Aula Invertida (Flipped Classroom)
+
+Ao invés de gastar 40 minutos explicando a teoria no quadro, peça que eles assistam a um vídeo curto (pode ser seu ou do YouTube) em casa.
+Na sala, use o tempo para **resolver problemas** ou fazer um debate.
+*   *Dica de Protagonista:* Se eles não assistirem em casa, exiba o vídeo nos primeiros 10 minutos e use o restante para a prática. Não desista da metodologia!
+
+## 3. Aprendizagem Baseada em Problemas (PBL)
+
+Comece a aula com uma pergunta intrigante, não com a resposta.
+Exemplo em História: Ao invés de "Hoje vamos falar sobre a Revolução Industrial", tente: "O que aconteceria com a sua vida se as máquinas parassem de funcionar hoje?".
+Conecte o conteúdo com a realidade deles.
+
+### Conclusão
+
+Ser protagonista é testar, errar e ajustar. Escolha uma dessas dicas e aplique amanhã. Depois me conte lá no Instagram como foi!
+
+*Com carinho,*
+*Sande.*'
+),
+(
+  'O Segredo do Canva: Materiais Pedagógicos Irresistíveis',
+  'Dicas Práticas',
+  'Sande Almeida',
+  'https://images.unsplash.com/photo-1626785774573-4b799312c95d?q=80&w=1000&auto=format&fit=crop',
+  CURRENT_DATE - 2,
+  '# Por que o design importa na educação?
+
+Muitas professoras me perguntam: *"Sande, preciso mesmo me preocupar se a folhinha está bonita?"*
+E a minha resposta é sempre: **Sim, porque a estética comunica cuidado.**
+
+Quando você entrega um material bem formatado, visualmente limpo e atrativo, você está dizendo ao aluno (e à família dele) que aquela aula foi planejada com carinho e profissionalismo.
+
+## O Canva é o seu melhor amigo
+
+Você não precisa ser designer gráfica. O Canva oferece modelos prontos que salvam horas do nosso planejamento.
+
+### 3 Elementos Essenciais em um Bom Material
+
+1.  **Hierarquia Visual:** O título deve ser maior que o texto. Use negrito para destacar palavras-chave. Isso ajuda alunos com dificuldade de leitura a escanear o conteúdo.
+2.  **Respiro (Espaço em Branco):** Não entupa a folha de texto. O cérebro precisa de pausas visuais para processar a informação. Menos é mais!
+3.  **Imagens com Propósito:** Não use imagens apenas para "enfeitar". Use ícones e ilustrações que ajudem a explicar o conceito.
+
+> "A organização do material reflete a organização do pensamento."
+
+No **Clube Professora Protagonista**, temos um módulo inteiro onde ensino o passo a passo de como criar jogos, flashcards e provas incríveis em minutos. Se você quer elevar o nível dos seus materiais, o Canva é a ferramenta.'
+),
+(
+  'Engajamento: Como conquistar a atenção da "Geração TikTok"',
+  'Inovação',
+  'Sande Almeida',
+  'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop',
+  CURRENT_DATE - 5,
+  '# A batalha pela atenção
+
+Seus alunos parecem estar em outro planeta? A culpa não é só deles, e nem sua. Estamos competindo com algoritmos bilionários desenhados para viciar. Mas nós temos algo que o TikTok não tem: **conexão humana real.**
+
+Para engajar a geração atual, precisamos falar a língua deles, sem perder a essência pedagógica.
+
+## Estratégias de Conexão
+
+### 1. Gamificação (Sem precisar de computador)
+Transforme a revisão da prova em um "Passa ou Repassa". Crie um sistema de pontuação e recompensas simples (como 5 minutos a mais de intervalo). O espírito competitivo saudável acorda qualquer turma.
+
+### 2. Micro-learning (Aprendizado em Pílulas)
+A atenção deles é curta. Fragmente sua aula em blocos de 10 a 15 minutos.
+*   10 min: Explicação
+*   10 min: Vídeo/Música
+*   15 min: Atividade Mão na Massa
+*   10 min: Fechamento
+
+### 3. Traga o mundo deles para dentro
+Eles gostam de um jogo específico? Use os personagens nos problemas de matemática. Estão ouvindo uma música viral? Analise a letra na aula de português. Mostre que você se importa com o universo deles.
+
+### O Aluno Protagonista
+Quando o aluno sente que a aula também "pertence" a ele, o comportamento muda. Dê cargos, responsabilidades e voz ativa.
+
+Vamos juntas transformar essa sala de aula em um espaço de vida!'
+);
+
+-- 9. Correção e Vinculação de Produtos
 INSERT INTO products (id, title, description, price, category, image_url, status, payment_active, forum_active)
 VALUES (
   '9e30a57d-14a0-4386-8a5f-0f8a85f40000',
@@ -133,17 +245,4 @@ VALUES (
   true
 ) ON CONFLICT (id) DO NOTHING;
 
--- 8. Correção de Dados Legados
-UPDATE leads 
-SET product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000' 
-WHERE product_id = 'CLUBE-ANUAL';
-
--- 9. Correção Específica para Marcelo (Outlook)
--- Atualiza qualquer compra que tenha "Clube" no nome ou ID antigo para o ID correto e Status Pago
-UPDATE leads
-SET 
-  product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000',
-  status = 'Pago'
-WHERE 
-  email ILIKE 'marcelobfo@outlook%' 
-  AND (product_id = 'CLUBE-ANUAL' OR product_name ILIKE '%Clube%');
+UPDATE leads SET product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000' WHERE product_id = 'CLUBE-ANUAL';

@@ -4,6 +4,7 @@ import { PlayCircle, FileText, ChevronLeft, Menu, CheckCircle2, Lock, Download, 
 import { View, Product, ProductMaterial, SiteContent, ProductForumMessage } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
+import Hls from 'hls.js';
 
 interface CoursePlayerProps {
   productId: string | null;
@@ -11,6 +12,65 @@ interface CoursePlayerProps {
   user: any;
   content: SiteContent;
 }
+
+// Sub-componente para renderizar o Player correto
+const VideoPlayer = ({ url, type, title }: { url: string, type?: 'youtube' | 'panda_embed' | 'panda_hls', title?: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (type === 'panda_hls' && Hls.isSupported() && videoRef.current) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(videoRef.current);
+      return () => {
+        hls.destroy();
+      };
+    } else if (type === 'panda_hls' && videoRef.current?.canPlayType('application/vnd.apple.mpegurl')) {
+      // Suporte nativo para Safari
+      videoRef.current.src = url;
+    }
+  }, [url, type]);
+
+  if (!url) return null;
+
+  if (type === 'panda_hls') {
+    return (
+      <video
+        ref={videoRef}
+        controls
+        className="w-full h-full object-contain bg-black"
+        poster="https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png" // Opcional: Fallback poster
+      >
+        <source src={url} type="application/x-mpegURL" />
+        Seu navegador não suporta este vídeo.
+      </video>
+    );
+  }
+
+  // Embed (YouTube ou Panda Iframe)
+  let embedUrl = url;
+  if (type === 'youtube' || !type) {
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      const videoId = url.split('v=')[1] || url.split('/').pop();
+      const cleanId = videoId?.split('&')[0];
+      embedUrl = `https://www.youtube.com/embed/${cleanId}?autoplay=0&rel=0&modestbranding=1`;
+    }
+  }
+
+  // Se for Panda Embed, a URL já deve ser o link do player ou iframe src.
+  // Se o usuário colou o código <iframe> inteiro, precisamos extrair o src, mas aqui assumimos URL direta.
+  
+  return (
+    <iframe 
+      src={embedUrl} 
+      className="w-full h-full" 
+      title={title || "Video Player"}
+      frameBorder="0" 
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+      allowFullScreen
+    ></iframe>
+  );
+};
 
 export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigate, user, content }) => {
   const [product, setProduct] = useState<Product | null>(null);
@@ -126,16 +186,6 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
   const handleLogout = async () => {
     await supabase.auth.signOut();
     onNavigate('home');
-  };
-
-  const getEmbedUrl = (url: string) => {
-    if (!url) return '';
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      const videoId = url.split('v=')[1] || url.split('/').pop();
-      const cleanId = videoId?.split('&')[0];
-      return `https://www.youtube.com/embed/${cleanId}?autoplay=0&rel=0&modestbranding=1`;
-    }
-    return url;
   };
 
   if (loading) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-orange"></div></div>;
@@ -261,14 +311,11 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
             <div className="aspect-video bg-black rounded-2xl shadow-2xl overflow-hidden relative border border-gray-800 mb-8 group">
               {(activeMaterial || showingFeaturedVideo) ? (
                 isVideo ? (
-                  <iframe 
-                    src={getEmbedUrl(showingFeaturedVideo ? (product.featured_video_url || '') : (activeMaterial?.url || ''))} 
-                    className="w-full h-full" 
+                  <VideoPlayer 
+                    url={showingFeaturedVideo ? (product.featured_video_url || '') : (activeMaterial?.url || '')}
+                    type={showingFeaturedVideo ? (product.featured_video_type || 'youtube') : (activeMaterial?.video_type || 'youtube')}
                     title={showingFeaturedVideo ? "Instruções" : activeMaterial?.title}
-                    frameBorder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                    allowFullScreen
-                  ></iframe>
+                  />
                 ) : (
                    <div className="w-full h-full relative group">
                       {/* Background Image with Blur */}

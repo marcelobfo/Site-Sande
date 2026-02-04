@@ -14,6 +14,7 @@
     "lucide-react": "0.473.0",
     "@supabase/supabase-js": "2.39.7",
     "react-helmet-async": "2.0.4",
+    "hls.js": "1.5.8",
     "@vitejs/plugin-react": "^5.1.2",
     "vite": "^7.3.1"
   },

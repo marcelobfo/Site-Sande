@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle, PlayCircle, MessageSquare } from 'lucide-react';
 import { View, Lead, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
+import { ProductCover } from '../components/ProductCover';
 
 interface MyAccountProps {
   onNavigate: (view: View, id?: string) => void;
@@ -336,7 +337,12 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
                 return (
                   <div key={product.id} className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-green-100 hover:shadow-2xl transition-all flex flex-col group">
                     <div className="relative h-40 overflow-hidden">
-                       <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={product.title} />
+                       <ProductCover 
+                         src={product.image_url} 
+                         alt={product.title}
+                         category={product.category}
+                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                       />
                        <div className="absolute inset-0 bg-brand-dark/20 group-hover:bg-brand-dark/10 transition-colors"></div>
                        {isUnlocked ? (
                          <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">Liberado</div>

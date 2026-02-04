@@ -1,30 +1,32 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { MessageCircle } from 'lucide-react';
-import { Home } from './pages/Home';
-import { About } from './pages/About';
-import { Products } from './pages/Products';
-import { ProductDetail } from './pages/ProductDetail';
-import { Blog } from './pages/Blog';
-import { BlogPostView } from './pages/BlogPostView';
-import { Contact } from './pages/Contact';
-import { FAQ } from './pages/FAQ';
-import { Policies } from './pages/Policies';
-import { RefundPolicy } from './pages/RefundPolicy';
-import { PrivacyPolicy } from './pages/PrivacyPolicy';
-import { Admin } from './pages/Admin';
-import { Briefing } from './pages/Briefing';
-import { ThankYou } from './pages/ThankYou';
-import { Login } from './pages/Login';
-import { MyAccount } from './pages/MyAccount';
-import { CoursePlayer } from './pages/CoursePlayer';
-import { Forum } from './pages/Forum'; // Novo
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { MessageCircle, Loader2 } from 'lucide-react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
 import { Toaster, Notification, NotificationType } from './components/Notification';
 import { View, SiteContent } from './types';
 import { supabase } from './lib/supabase';
+
+// Lazy Load Pages para otimizar performance inicial
+const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
+const About = React.lazy(() => import('./pages/About').then(module => ({ default: module.About })));
+const Products = React.lazy(() => import('./pages/Products').then(module => ({ default: module.Products })));
+const ProductDetail = React.lazy(() => import('./pages/ProductDetail').then(module => ({ default: module.ProductDetail })));
+const Blog = React.lazy(() => import('./pages/Blog').then(module => ({ default: module.Blog })));
+const BlogPostView = React.lazy(() => import('./pages/BlogPostView').then(module => ({ default: module.BlogPostView })));
+const Contact = React.lazy(() => import('./pages/Contact').then(module => ({ default: module.Contact })));
+const FAQ = React.lazy(() => import('./pages/FAQ').then(module => ({ default: module.FAQ })));
+const Policies = React.lazy(() => import('./pages/Policies').then(module => ({ default: module.Policies })));
+const RefundPolicy = React.lazy(() => import('./pages/RefundPolicy').then(module => ({ default: module.RefundPolicy })));
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy').then(module => ({ default: module.PrivacyPolicy })));
+const Admin = React.lazy(() => import('./pages/Admin').then(module => ({ default: module.Admin })));
+const Briefing = React.lazy(() => import('./pages/Briefing').then(module => ({ default: module.Briefing })));
+const ThankYou = React.lazy(() => import('./pages/ThankYou').then(module => ({ default: module.ThankYou })));
+const Login = React.lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+const MyAccount = React.lazy(() => import('./pages/MyAccount').then(module => ({ default: module.MyAccount })));
+const CoursePlayer = React.lazy(() => import('./pages/CoursePlayer').then(module => ({ default: module.CoursePlayer })));
+const Forum = React.lazy(() => import('./pages/Forum').then(module => ({ default: module.Forum })));
 
 const DEFAULT_CONTENT: SiteContent = {
   homeherotitle: 'Inspire. Inove. Protagonize.',
@@ -46,6 +48,13 @@ const getErrorMessage = (error: unknown): string => {
   }
   return 'Erro desconhecido ao processar solicitação';
 };
+
+const LoadingFallback = () => (
+  <div className="min-h-[60vh] flex flex-col items-center justify-center">
+    <Loader2 className="animate-spin text-brand-purple mb-4" size={48} />
+    <p className="text-gray-400 font-black text-xs uppercase tracking-widest">Carregando...</p>
+  </div>
+);
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('home');
@@ -144,33 +153,38 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
-    if (currentView === 'admin' && !isAdmin) return <Login onNavigate={navigate} type="admin" notify={addNotification} />;
-    if ((currentView === 'my-account' || currentView === 'player' || currentView === 'forum') && !user) return <Login onNavigate={navigate} type="user" notify={addNotification} />;
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        {(() => {
+          if (currentView === 'admin' && !isAdmin) return <Login onNavigate={navigate} type="admin" notify={addNotification} />;
+          if ((currentView === 'my-account' || currentView === 'player' || currentView === 'forum') && !user) return <Login onNavigate={navigate} type="user" notify={addNotification} />;
 
-    switch (currentView) {
-      case 'home': return <Home onNavigate={navigate} content={content} />;
-      case 'about': return <About onNavigate={navigate} content={content} />;
-      case 'products': return <Products onNavigate={navigate} content={content} notify={addNotification} />;
-      case 'product-detail': return <ProductDetail productId={selectedId} onNavigate={navigate} content={content} notify={addNotification} />;
-      case 'blog': return <Blog onNavigate={navigate} />;
-      case 'blog-post': return <BlogPostView postId={selectedId} onNavigate={navigate} />;
-      case 'contact': return <Contact content={content} onNavigate={navigate} notify={addNotification} />;
-      case 'faq': return <FAQ onNavigate={navigate} />;
-      case 'policies': return <Policies onNavigate={navigate} />;
-      case 'refund': return <RefundPolicy onNavigate={navigate} content={content} />;
-      case 'privacy': return <PrivacyPolicy onNavigate={navigate} />;
-      case 'admin': return <Admin content={content} onUpdate={handleUpdateContent} onNavigate={navigate} notify={addNotification} />;
-      case 'briefing': return <Briefing onNavigate={navigate} />;
-      case 'thank-you': return <ThankYou onNavigate={navigate} />;
-      case 'login': return <Login onNavigate={navigate} notify={addNotification} />;
-      case 'my-account': return <MyAccount onNavigate={navigate} user={user} />;
-      case 'player': return <CoursePlayer productId={selectedId} onNavigate={navigate} user={user} content={content} />;
-      case 'forum': return <Forum onNavigate={navigate} user={user} />;
-      default: return <Home onNavigate={navigate} content={content} />;
-    }
+          switch (currentView) {
+            case 'home': return <Home onNavigate={navigate} content={content} />;
+            case 'about': return <About onNavigate={navigate} content={content} />;
+            case 'products': return <Products onNavigate={navigate} content={content} notify={addNotification} />;
+            case 'product-detail': return <ProductDetail productId={selectedId} onNavigate={navigate} content={content} notify={addNotification} />;
+            case 'blog': return <Blog onNavigate={navigate} />;
+            case 'blog-post': return <BlogPostView postId={selectedId} onNavigate={navigate} />;
+            case 'contact': return <Contact content={content} onNavigate={navigate} notify={addNotification} />;
+            case 'faq': return <FAQ onNavigate={navigate} />;
+            case 'policies': return <Policies onNavigate={navigate} />;
+            case 'refund': return <RefundPolicy onNavigate={navigate} content={content} />;
+            case 'privacy': return <PrivacyPolicy onNavigate={navigate} />;
+            case 'admin': return <Admin content={content} onUpdate={handleUpdateContent} onNavigate={navigate} notify={addNotification} />;
+            case 'briefing': return <Briefing onNavigate={navigate} />;
+            case 'thank-you': return <ThankYou onNavigate={navigate} />;
+            case 'login': return <Login onNavigate={navigate} notify={addNotification} />;
+            case 'my-account': return <MyAccount onNavigate={navigate} user={user} />;
+            case 'player': return <CoursePlayer productId={selectedId} onNavigate={navigate} user={user} content={content} />;
+            case 'forum': return <Forum onNavigate={navigate} user={user} />;
+            default: return <Home onNavigate={navigate} content={content} />;
+          }
+        })()}
+      </Suspense>
+    );
   };
 
-  // Se for Player ou Forum, renderiza sem Header/Footer para imersão, ou ajustado
   if (currentView === 'player') {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
@@ -180,8 +194,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Forum pode ter layout próprio ou usar o padrão. Vamos usar padrão por enquanto, ou tela cheia sem footer.
-  // Para manter consistência, vamos remover Header/Footer no Fórum também para parecer app.
   if (currentView === 'forum') {
     return (
       <div className="min-h-screen bg-gray-50 text-brand-dark">

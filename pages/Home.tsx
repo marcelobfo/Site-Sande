@@ -4,6 +4,7 @@ import { Star, Zap, ArrowRight, Sparkles, Quote, Circle, CheckCircle2, ShoppingC
 import { View, SiteContent, Product, BlogPost } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
+import { ProductCover } from '../components/ProductCover';
 
 interface HomeProps {
   onNavigate: (view: View, id?: string) => void;
@@ -123,10 +124,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, content }) => {
           {featuredProducts.map(product => (
             <div key={product.id} className="group bg-white rounded-[2rem] md:rounded-[3rem] lg:rounded-[4rem] overflow-hidden shadow-xl border border-brand-lilac/5 hover:shadow-2xl transition-all cursor-pointer flex flex-col" onClick={() => onNavigate('product-detail', product.id)}>
               <div className="relative aspect-square overflow-hidden">
-                <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.title} />
-                <div className="absolute top-4 left-4 md:top-6 md:left-6 bg-brand-purple/90 backdrop-blur-md text-white px-3 py-1 md:px-4 md:py-2 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest">
-                  {product.category}
-                </div>
+                <ProductCover 
+                  src={product.image_url} 
+                  alt={product.title}
+                  category={product.category}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                />
               </div>
               <div className="p-6 md:p-8 lg:p-10 flex-grow flex flex-col">
                 <h3 className="text-xl md:text-2xl font-black text-brand-dark mb-3 md:mb-4 leading-tight group-hover:text-brand-purple transition-colors line-clamp-2">{product.title}</h3>

@@ -119,6 +119,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
         payload.description = editItem.description;
         payload.download_url = editItem.download_url;
         payload.featured_video_url = editItem.featured_video_url; // Novo campo
+        payload.featured_video_type = editItem.featured_video_type || 'youtube'; // Novo campo
         payload.status = editItem.status || 'published'; 
         payload.payment_active = editItem.payment_active !== false; 
         payload.forum_active = editItem.forum_active === true; // Novo campo
@@ -160,6 +161,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
       id: Math.random().toString(36).substr(2, 9),
       title: '',
       type: 'video',
+      video_type: 'youtube', // Default
       url: '',
       module: 'Módulo 1',
       duration: ''
@@ -361,7 +363,23 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                        </div>
                     </div>
                     <div className="space-y-3">
-                        <AdminInput label="Vídeo em Destaque / Instruções (YouTube URL)" icon={<PlayCircle size={14}/>} value={editItem.featured_video_url} onChange={(v: string) => setEditItem({...editItem, featured_video_url: v})} placeholder="Ex: https://youtube.com/..." />
+                        <div className="flex gap-2 items-end">
+                           <div className="flex-grow">
+                              <AdminInput label="Vídeo em Destaque (URL)" icon={<PlayCircle size={14}/>} value={editItem.featured_video_url} onChange={(v: string) => setEditItem({...editItem, featured_video_url: v})} placeholder="Ex: https://youtube.com/..." />
+                           </div>
+                           <div className="w-1/3">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-3 px-1">Tipo</label>
+                              <select 
+                                value={editItem.featured_video_type || 'youtube'} 
+                                onChange={(e) => setEditItem({...editItem, featured_video_type: e.target.value})} 
+                                className="w-full py-5 px-4 bg-gray-50/50 border-2 border-transparent focus:border-brand-purple focus:bg-white rounded-2xl font-bold text-xs text-brand-dark transition-all outline-none"
+                              >
+                                 <option value="youtube">YouTube</option>
+                                 <option value="panda_embed">Panda Embed (URL)</option>
+                                 <option value="panda_hls">Panda HLS (.m3u8)</option>
+                              </select>
+                           </div>
+                        </div>
                         <AdminInput label="Link Externo (Checkout/Fallback)" icon={<LinkIcon size={14}/>} value={editItem.download_url} onChange={(v: string) => setEditItem({...editItem, download_url: v})} placeholder="Ex: Link do Google Drive" />
                     </div>
                   </div>
@@ -434,20 +452,51 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
                                </select>
                             </div>
 
-                            {/* Linha 2: URL e Duração */}
-                            <div className="md:col-span-9">
-                               <div className="relative">
-                                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                     {mat.type === 'video' ? <Video size={14} /> : <LinkIcon size={14} />}
-                                  </div>
-                                  <input 
-                                    placeholder={mat.type === 'video' ? "Link do YouTube, Vimeo..." : "URL do Arquivo ou Drive..."} 
-                                    value={mat.url || ''} 
-                                    onChange={(e) => updateMaterial(idx, 'url', e.target.value)}
-                                    className="w-full pl-9 p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
-                                  />
-                               </div>
-                            </div>
+                            {/* Linha 2: Configuração de URL Específica para Vídeo ou Link */}
+                            {mat.type === 'video' ? (
+                              <>
+                                <div className="md:col-span-3">
+                                   <div className="relative">
+                                      <select 
+                                        value={mat.video_type || 'youtube'} 
+                                        onChange={(e) => updateMaterial(idx, 'video_type', e.target.value)}
+                                        className="w-full p-3 bg-brand-orange/5 border-brand-orange/20 rounded-xl text-xs font-bold text-brand-orange border focus:border-brand-orange outline-none"
+                                      >
+                                        <option value="youtube">YouTube</option>
+                                        <option value="panda_embed">Panda Embed</option>
+                                        <option value="panda_hls">Panda HLS (.m3u8)</option>
+                                      </select>
+                                   </div>
+                                </div>
+                                <div className="md:col-span-6">
+                                   <div className="relative">
+                                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                         <Video size={14} />
+                                      </div>
+                                      <input 
+                                        placeholder={mat.video_type === 'panda_hls' ? "URL .m3u8" : "URL ou Link do Embed"}
+                                        value={mat.url || ''} 
+                                        onChange={(e) => updateMaterial(idx, 'url', e.target.value)}
+                                        className="w-full pl-9 p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
+                                      />
+                                   </div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="md:col-span-9">
+                                 <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                       <LinkIcon size={14} />
+                                    </div>
+                                    <input 
+                                      placeholder="URL do Arquivo ou Drive..." 
+                                      value={mat.url || ''} 
+                                      onChange={(e) => updateMaterial(idx, 'url', e.target.value)}
+                                      className="w-full pl-9 p-3 bg-gray-50 rounded-xl text-xs font-bold text-brand-dark border border-gray-200 focus:border-brand-purple outline-none"
+                                    />
+                                 </div>
+                              </div>
+                            )}
 
                             <div className="md:col-span-3">
                                <div className="relative">

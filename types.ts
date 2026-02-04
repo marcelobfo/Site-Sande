@@ -1,10 +1,12 @@
+
 export interface ProductMaterial {
   id: string;
   title: string;
   type: 'video' | 'file' | 'link' | 'drive';
   url: string;
-  duration?: string; // Duração estimada
-  module?: string; // Nome do Módulo (ex: Módulo 1: Introdução)
+  video_type?: 'youtube' | 'panda_embed' | 'panda_hls'; // Novo campo
+  duration?: string; 
+  module?: string; 
 }
 
 export interface Product {
@@ -15,14 +17,15 @@ export interface Product {
   description: string;
   category: string;
   image_url: string;
-  download_url?: string; // Mantido para compatibilidade
-  materials?: ProductMaterial[]; // Novo campo para múltiplos links
-  featured_video_url?: string; // Vídeo de instrução/destaque
+  download_url?: string; 
+  materials?: ProductMaterial[]; 
+  featured_video_url?: string; 
+  featured_video_type?: 'youtube' | 'panda_embed' | 'panda_hls'; // Novo campo
   checkout_url?: string;
   features?: string[];
-  status?: 'published' | 'draft'; // Novo campo de status
-  payment_active?: boolean; // Se false, mostra "Em Breve" e bloqueia compra
-  forum_active?: boolean; // Se true, exibe a aba Comunidade no player
+  status?: 'published' | 'draft'; 
+  payment_active?: boolean; 
+  forum_active?: boolean; 
   created_at?: string;
 }
 
@@ -33,7 +36,7 @@ export interface ProductForumMessage {
   user_name: string;
   content: string;
   created_at: string;
-  reactions: Record<string, string[]>; // { "❤️": ["email1", "email2"], "😂": ["email1"] }
+  reactions: Record<string, string[]>; 
   reply_to?: string;
 }
 
@@ -64,7 +67,7 @@ export interface BlogPost {
 export interface SiteContent {
   homeherotitle: string;
   homeherosub: string;
-  homeherotitlesize?: number; // Tamanho da fonte em REM
+  homeherotitlesize?: number; 
   homeheroimageurl?: string;
   homeherobgimageurl?: string;
   homemethodimageurl?: string;

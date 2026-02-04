@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Calendar, Mail, Package, X, Phone, Database, Edit3, Trash2, DollarSign, GripVertical } from 'lucide-react';
 import { Lead, LeadStatus } from '../../types';
@@ -84,19 +85,22 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
   };
 
   return (
-    <div className="flex gap-6 overflow-x-auto pb-12 pt-2 min-h-[calc(100vh-250px)] custom-scrollbar-h items-start">
+    // Altura fixa calculada (100vh - cabeçalho) para evitar scroll na página inteira
+    <div className="flex gap-6 overflow-x-auto pb-4 pt-2 h-[calc(100vh-240px)] custom-scrollbar-h items-start">
       {STATUS_OPTIONS.map(status => (
         <div 
           key={status} 
           onDragOver={(e) => onDragOver(e, status)}
           onDrop={(e) => onDrop(e, status)}
-          className={`p-5 rounded-[2.5rem] min-w-[320px] max-w-[320px] flex flex-col border transition-all duration-300 ${
+          // Adicionado h-full para a coluna ocupar a altura do container pai
+          className={`p-5 rounded-[2.5rem] min-w-[320px] max-w-[320px] flex flex-col h-full border transition-all duration-300 ${
             isDraggingOver === status 
             ? 'bg-brand-purple/10 border-brand-purple border-dashed scale-[1.02]' 
             : 'bg-gray-100/50 border-gray-200/50'
           }`}
         >
-          <div className="flex justify-between items-center mb-6 px-3">
+          {/* Header da Coluna (Fixo) */}
+          <div className="flex justify-between items-center mb-4 px-3 shrink-0">
             <div className="flex items-center gap-2">
                <div className={`w-3 h-3 rounded-full ${getStatusColor(status)} shadow-sm`}></div>
                <h4 className="font-black text-[11px] uppercase text-brand-dark tracking-widest">{status}</h4>
@@ -113,7 +117,8 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
             </div>
           </div>
 
-          <div className="space-y-4 flex-grow px-1 min-h-[200px]">
+          {/* Área de Cards com Scroll Vertical */}
+          <div className="space-y-4 flex-grow px-1 overflow-y-auto custom-scrollbar-y pr-2">
             {leads.filter(l => l.status === status).map(lead => (
               <div 
                 key={lead.id} 
@@ -162,6 +167,8 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(status)}`}></div>
               </div>
             ))}
+            {/* Espaçador no final para não cortar o último card */}
+            <div className="h-2"></div>
           </div>
         </div>
       ))}
@@ -233,6 +240,7 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
       )}
 
       <style>{`
+        /* Scrollbar Horizontal (Quadro Inteiro) */
         .custom-scrollbar-h::-webkit-scrollbar {
           height: 10px;
         }
@@ -248,6 +256,22 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
         }
         .custom-scrollbar-h::-webkit-scrollbar-thumb:hover {
           background: #7E22CE50;
+        }
+
+        /* Scrollbar Vertical (Dentro das Colunas) */
+        .custom-scrollbar-y::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar-y::-webkit-scrollbar-track {
+          background: transparent;
+          margin: 10px 0;
+        }
+        .custom-scrollbar-y::-webkit-scrollbar-thumb {
+          background: #CBD5E1;
+          border-radius: 20px;
+        }
+        .custom-scrollbar-y::-webkit-scrollbar-thumb:hover {
+          background: #94A3B8;
         }
       `}</style>
     </div>
