@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown, CheckCircle2, ShieldCheck, Zap, Lock, Plus } from 'lucide-react';
+import { ShoppingCart, Check, ArrowUpRight, Loader2, ArrowRight, Star, Sparkles, Filter, LayoutGrid, List, Gem, Phone, AlertCircle, MessageCircle, X, User, Mail, FileText, MapPin, ChevronDown, CheckCircle2, ShieldCheck, Zap, Lock, Plus, ExternalLink } from 'lucide-react';
 import { View, SiteContent, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 import { ProductCover } from '../components/ProductCover';
@@ -242,6 +242,18 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     ? content.clubefeatures.split('\n').filter(f => f.trim() !== '')
     : ["Acesso a Todos os Materiais (+300)", "Novidades Toda Semana", "Aulas de Edição no Canva"];
 
+  // Logic for Club Button
+  const isClubSalesActive = content.clubesalesactive !== false; // Default true
+  const handleClubButtonClick = () => {
+    if (!isClubSalesActive) return;
+    
+    if (content.clubelink && content.clubelink.trim() !== '') {
+      window.open(content.clubelink, '_blank');
+    } else {
+      setShowClubBillingForm(true);
+    }
+  };
+
   return (
     <div className="bg-brand-cream/30 pb-16 md:pb-24">
       {/* Banner Clube Premium Redesigned */}
@@ -315,10 +327,19 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
                 </div>
 
                 <button 
-                  onClick={() => setShowClubBillingForm(true)} 
-                  className="w-full sm:w-auto flex-grow bg-brand-orange text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-3 group"
+                  onClick={handleClubButtonClick}
+                  disabled={!isClubSalesActive}
+                  className={`w-full sm:w-auto flex-grow px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-3 group ${isClubSalesActive ? 'bg-brand-orange text-white hover:scale-105' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                 >
-                  Assinar Agora <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  {isClubSalesActive ? (
+                    content.clubelink ? (
+                      <>ACESSAR OFERTA <ExternalLink size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                    ) : (
+                      <>ASSINAR AGORA <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                    )
+                  ) : (
+                    <>EM BREVE <Lock size={18} /></>
+                  )}
                 </button>
               </div>
             </div>

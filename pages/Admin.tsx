@@ -51,7 +51,7 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
 
   useEffect(() => {
     fetchAllData();
-    setForm({ ...content, homeherotitlesize: content.homeherotitlesize ?? 6.5 });
+    setForm({ ...content, homeherotitlesize: content.homeherotitlesize ?? 6.5, clubesalesactive: content.clubesalesactive !== false });
   }, [content, activeTab]);
 
   const fetchAllData = async () => {
@@ -212,10 +212,30 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <AdminInput label="Nome Clube" value={form.clubetitle} onChange={(v: string) => setForm({...form, clubetitle: v})} />
+                
+                {/* Toggle de Vendas Ativas */}
+                <div className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${form.clubesalesactive !== false ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-200'}`} onClick={() => setForm({...form, clubesalesactive: form.clubesalesactive === false})}>
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl text-white ${form.clubesalesactive !== false ? 'bg-green-500' : 'bg-gray-400'}`}>
+                          {form.clubesalesactive !== false ? <Unlock size={16} /> : <Lock size={16} />}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wide text-brand-dark">Vendas do Clube</p>
+                          <p className="text-[9px] font-bold text-gray-500">{form.clubesalesactive !== false ? 'Abertas' : 'Fechadas'}</p>
+                        </div>
+                    </div>
+                    <div className={`w-8 h-5 rounded-full relative transition-colors ${form.clubesalesactive !== false ? 'bg-green-500' : 'bg-gray-300'}`}>
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${form.clubesalesactive !== false ? 'right-1' : 'left-1'}`}></div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <AdminInput label="Preço" type="number" value={form.clubeprice} onChange={(v: string) => setForm({...form, clubeprice: Number(v)})} />
                   <AdminInput label="Preço De (Riscado)" type="number" value={form.clubeoldprice} onChange={(v: string) => setForm({...form, clubeoldprice: Number(v)})} />
                 </div>
+                
+                <AdminInput label="Link de Checkout Externo (Opcional)" icon={<LinkIcon size={16}/>} value={form.clubelink} onChange={(v: string) => setForm({...form, clubelink: v})} placeholder="Ex: https://checkout.com/..." />
+                
                 <AdminInput label="Descrição Curta" textarea value={form.clubedescription} onChange={(v: string) => setForm({...form, clubedescription: v})} />
                 <AdminInput label="Lista de Benefícios (Um por linha)" textarea value={form.clubefeatures} onChange={(v: string) => setForm({...form, clubefeatures: v})} placeholder="Acesso a Todos os Materiais&#10;Novidades Toda Semana&#10;Aulas de Edição no Canva" />
               </div>

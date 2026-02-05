@@ -78,6 +78,8 @@ export interface SiteContent {
   clubeoldprice?: number; // Novo: Preço riscado
   clubefeatures?: string; // Novo: Lista de benefícios
   clubebannerimageurl?: string;
+  clubesalesactive?: boolean; // Novo: Ativar Vendas
+  clubelink?: string; // Novo: Link Externo Alternativo
   // Suporte
   supportwhatsapp: string;
   supportemail: string;
