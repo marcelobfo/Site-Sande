@@ -237,6 +237,11 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     setCustomerData({ ...customerData, [e.target.name]: e.target.value });
   };
 
+  // Process features list from content string
+  const clubFeaturesList = content.clubefeatures 
+    ? content.clubefeatures.split('\n').filter(f => f.trim() !== '')
+    : ["Acesso a Todos os Materiais (+300)", "Novidades Toda Semana", "Aulas de Edição no Canva"];
+
   return (
     <div className="bg-brand-cream/30 pb-16 md:pb-24">
       {/* Banner Clube Premium Redesigned */}
@@ -269,32 +274,39 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
               </div>
               
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-[0.9] mb-4">
-                Clube Professora <br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-lilac to-white">Protagonista</span>
+                {content.clubetitle ? (
+                  <>
+                    {content.clubetitle.split(' ').slice(0, -1).join(' ')} <br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-lilac to-white">{content.clubetitle.split(' ').pop()}</span>
+                  </>
+                ) : (
+                  <>
+                    Clube Professora <br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-lilac to-white">Protagonista</span>
+                  </>
+                )}
               </h2>
 
               <p className="text-gray-300 font-medium text-sm md:text-base leading-relaxed mb-8 max-w-md">
-                A solução definitiva para sua carreira. Acesso ilimitado a todos os materiais, atualizações semanais e suporte exclusivo.
+                {content.clubedescription || "A solução definitiva para sua carreira. Acesso ilimitado a todos os materiais, atualizações semanais e suporte exclusivo."}
               </p>
 
               <div className="space-y-4 mb-10">
-                <div className="flex items-center gap-3">
-                  <div className="bg-green-500/20 p-1 rounded-full"><Check size={14} className="text-green-400" /></div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-200">Acesso a Todos os Materiais (+300)</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-green-500/20 p-1 rounded-full"><Check size={14} className="text-green-400" /></div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-200">Novidades Toda Semana</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-green-500/20 p-1 rounded-full"><Check size={14} className="text-green-400" /></div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-200">Aulas de Edição no Canva</span>
-                </div>
+                {clubFeaturesList.map((feature, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <div className="bg-green-500/20 p-1 rounded-full"><Check size={14} className="text-green-400" /></div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-gray-200">{feature}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <div className="text-center sm:text-left">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 line-through">De R$ 697,00</p>
+                  {content.clubeoldprice && (
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 line-through">
+                      De R$ {Number(content.clubeoldprice).toFixed(2).replace('.', ',')}
+                    </p>
+                  )}
                   <div className="flex items-baseline gap-1">
                     <span className="text-lg font-bold text-brand-orange">R$</span>
                     <span className="text-4xl lg:text-5xl font-black text-white">{Number(content.clubeprice).toFixed(0)}</span>

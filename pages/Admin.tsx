@@ -212,8 +212,12 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <AdminInput label="Nome Clube" value={form.clubetitle} onChange={(v: string) => setForm({...form, clubetitle: v})} />
-                <AdminInput label="Preço" type="number" value={form.clubeprice} onChange={(v: string) => setForm({...form, clubeprice: Number(v)})} />
+                <div className="grid grid-cols-2 gap-4">
+                  <AdminInput label="Preço" type="number" value={form.clubeprice} onChange={(v: string) => setForm({...form, clubeprice: Number(v)})} />
+                  <AdminInput label="Preço De (Riscado)" type="number" value={form.clubeoldprice} onChange={(v: string) => setForm({...form, clubeoldprice: Number(v)})} />
+                </div>
                 <AdminInput label="Descrição Curta" textarea value={form.clubedescription} onChange={(v: string) => setForm({...form, clubedescription: v})} />
+                <AdminInput label="Lista de Benefícios (Um por linha)" textarea value={form.clubefeatures} onChange={(v: string) => setForm({...form, clubefeatures: v})} placeholder="Acesso a Todos os Materiais&#10;Novidades Toda Semana&#10;Aulas de Edição no Canva" />
               </div>
               <ImageUp label="Banner Clube" current={form.clubebannerimageurl} onUpload={(e: any) => handleImageUpload(e, 'clubebannerimageurl')} />
             </div>

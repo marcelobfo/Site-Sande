@@ -75,6 +75,8 @@ export interface SiteContent {
   clubetitle?: string;
   clubedescription?: string;
   clubeprice: number;
+  clubeoldprice?: number; // Novo: Preço riscado
+  clubefeatures?: string; // Novo: Lista de benefícios
   clubebannerimageurl?: string;
   // Suporte
   supportwhatsapp: string;

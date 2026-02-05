@@ -7,6 +7,10 @@ UPDATE site_content SET homeherotitlesize = 6.5 WHERE id = 1 AND homeherotitlesi
 ALTER TABLE site_content ADD COLUMN IF NOT EXISTS clubedescription text;
 ALTER TABLE site_content ADD COLUMN IF NOT EXISTS clubetitle text DEFAULT 'Clube Professora Protagonista';
 
+-- 1.2 Novos Campos para o Banner do Clube (Preço Riscado e Benefícios)
+ALTER TABLE site_content ADD COLUMN IF NOT EXISTS clubeoldprice numeric;
+ALTER TABLE site_content ADD COLUMN IF NOT EXISTS clubefeatures text DEFAULT E'Acesso a Todos os Materiais (+300)\nNovidades Toda Semana\nAulas de Edição no Canva';
+
 -- 2. Suporte para Área de Membros
 ALTER TABLE products ADD COLUMN IF NOT EXISTS materials jsonb DEFAULT '[]'::jsonb;
 UPDATE products SET materials = '[]'::jsonb WHERE materials IS NULL;
