@@ -153,7 +153,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
     e.preventDefault();
     if (!newMessage.trim() || !user || !productId) return;
 
-    await supabase.from('product_forum_messages').insert([{
+    const { error } = await supabase.from('product_forum_messages').insert([{
       product_id: productId,
       user_email: user.email,
       user_name: user.email.split('@')[0],
@@ -161,7 +161,12 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
       reactions: {}
     }]);
 
-    setNewMessage('');
+    if (error) {
+        console.error('Erro ao enviar:', error);
+        alert('Erro ao enviar mensagem.');
+    } else {
+        setNewMessage('');
+    }
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
@@ -181,7 +186,11 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
       newReactions = { ...currentReactions, [emoji]: [...usersReacted, user.email] };
     }
 
-    await supabase.from('product_forum_messages').update({ reactions: newReactions }).eq('id', messageId);
+    const { error } = await supabase.from('product_forum_messages').update({ reactions: newReactions }).eq('id', messageId);
+    if (error) {
+        console.error('Erro reação:', error);
+        alert('Falha ao processar reação.');
+    }
   };
 
   const handleLogout = async () => {

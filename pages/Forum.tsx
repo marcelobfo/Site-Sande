@@ -162,7 +162,7 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user, content }) => {
 
     const isAdmin = user.user_metadata?.role === 'admin' || user.email === 'contato@metodoprotagonizar.com.br';
 
-    await supabase.from('forum_posts').insert([{
+    const { error } = await supabase.from('forum_posts').insert([{
       topic_id: selectedTopic.id,
       content: newPost,
       author_name: user.email.split('@')[0],
@@ -171,7 +171,12 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user, content }) => {
       reactions: {}
     }]);
 
-    setNewPost('');
+    if (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      alert('Erro ao enviar mensagem. Por favor, tente novamente.');
+    } else {
+      setNewPost('');
+    }
   };
 
   const handleReaction = async (postId: string, emoji: string) => {
@@ -189,7 +194,12 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user, content }) => {
       newReactions = { ...currentReactions, [emoji]: [...usersReacted, user.email] };
     }
 
-    await supabase.from('forum_posts').update({ reactions: newReactions }).eq('id', postId);
+    const { error } = await supabase.from('forum_posts').update({ reactions: newReactions }).eq('id', postId);
+    
+    if (error) {
+        console.error('Erro ao enviar reação:', error);
+        alert('Erro ao processar reação.');
+    }
   };
 
   const handleVote = async (optionId: string) => {
@@ -204,6 +214,8 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user, content }) => {
     if (!error) {
       setUserVote(optionId);
       fetchPoll(selectedTopic!.id);
+    } else {
+      alert('Erro ao votar.');
     }
   };
 

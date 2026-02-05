@@ -65,8 +65,12 @@ CREATE TABLE IF NOT EXISTS forum_posts (
   author_email text NOT NULL,
   created_at timestamptz DEFAULT now(),
   is_admin boolean DEFAULT false,
-  reactions jsonb DEFAULT '{}'::jsonb -- Adicionado suporte a reações
+  reactions jsonb DEFAULT '{}'::jsonb
 );
+
+-- CORREÇÃO CRÍTICA: Garante que as colunas existam mesmo se a tabela já foi criada antes
+ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS reactions jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS is_admin boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS forum_polls (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -100,6 +104,9 @@ CREATE TABLE IF NOT EXISTS product_forum_messages (
   reactions jsonb DEFAULT '{}'::jsonb,
   reply_to uuid REFERENCES product_forum_messages(id)
 );
+
+-- CORREÇÃO CRÍTICA: Garante que as colunas existam na tabela de mensagens do produto
+ALTER TABLE product_forum_messages ADD COLUMN IF NOT EXISTS reactions jsonb DEFAULT '{}'::jsonb;
 
 -- 7. Blog Posts (Criação da Tabela e Inserção de Conteúdo)
 CREATE TABLE IF NOT EXISTS blog_posts (
