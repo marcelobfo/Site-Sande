@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { PlayCircle, FileText, ChevronLeft, Menu, CheckCircle2, Lock, Download, MessageCircle, Share2, LogOut, Layout, Video, ChevronRight, X, Info, Send, Smile } from 'lucide-react';
+import { PlayCircle, FileText, ChevronLeft, Menu, CheckCircle2, Lock, Download, MessageCircle, Share2, LogOut, Layout, Video, ChevronRight, X, Info, Send, Smile, ShieldCheck } from 'lucide-react';
 import { View, Product, ProductMaterial, SiteContent, ProductForumMessage } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
@@ -11,6 +11,7 @@ interface CoursePlayerProps {
   onNavigate: (view: View, id?: string) => void;
   user: any;
   content: SiteContent;
+  isAdmin?: boolean;
 }
 
 // Sub-componente para renderizar o Player correto
@@ -72,7 +73,7 @@ const VideoPlayer = ({ url, type, title }: { url: string, type?: 'youtube' | 'pa
   );
 };
 
-export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigate, user, content }) => {
+export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigate, user, content, isAdmin }) => {
   const [product, setProduct] = useState<Product | null>(null);
   const [activeMaterial, setActiveMaterial] = useState<ProductMaterial | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -294,6 +295,11 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ productId, onNavigat
             </h1>
           </div>
           <div className="flex items-center gap-4">
+             {isAdmin && (
+               <span className="bg-brand-purple/20 text-brand-purple px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-brand-purple/30 flex items-center gap-2">
+                 <ShieldCheck size={12} /> Visão Admin
+               </span>
+             )}
              <div className="flex items-center gap-3 bg-gray-800 py-1.5 px-4 rounded-full">
                <div className="w-6 h-6 bg-brand-purple rounded-full flex items-center justify-center text-[10px] font-black text-white">
                  {user.email[0].toUpperCase()}

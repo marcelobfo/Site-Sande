@@ -49,7 +49,7 @@ export const Products: React.FC<ProductsProps> = ({ onNavigate, content, notify 
     const fetchCategories = async () => {
       const { data } = await supabase.from('products').select('category').eq('status', 'published');
       if (data) {
-        const uniqueCats = Array.from(new Set(data.map((p: any) => String(p.category))));
+        const uniqueCats = Array.from(new Set(data.map((p: any) => String(p.category)))) as string[];
         setCategories(['Todos', ...uniqueCats]);
       }
     };

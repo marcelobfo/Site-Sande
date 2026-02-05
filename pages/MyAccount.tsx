@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle, PlayCircle, MessageSquare } from 'lucide-react';
+import { Package, Download, ExternalLink, Loader2, Sparkles, Clock, AlertCircle, CheckCircle2, Lock, ArrowRight, RefreshCcw, ShieldCheck, Gem, Youtube, FileText, HardDrive, Link as LinkIcon, ShoppingCart, User, Mail, Phone, MapPin, X, LayoutGrid, PlusCircle, PlayCircle, MessageSquare, Unlock } from 'lucide-react';
 import { View, Lead, Product, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 import { ProductCover } from '../components/ProductCover';
@@ -9,6 +9,7 @@ interface MyAccountProps {
   onNavigate: (view: View, id?: string) => void;
   user: any;
   content?: any;
+  isAdmin?: boolean;
 }
 
 const BillingInput = ({ label, icon, required, ...props }: any) => (
@@ -25,7 +26,7 @@ const BillingInput = ({ label, icon, required, ...props }: any) => (
   </div>
 );
 
-export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
+export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user, isAdmin }) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [userLeads, setUserLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +94,11 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
   // Helper para determinar o status do produto com verificação de validade de 1 ano
   const getProductStatus = (productId: string): { status: 'unlocked' | 'pending' | 'locked', lead: Lead | undefined } => {
+    // BYPASS PARA ADMINISTRADORES
+    if (isAdmin) {
+      return { status: 'unlocked', lead: undefined };
+    }
+
     // Busca inicial pelo ID exato
     let leadsForProduct = userLeads.filter(l => l.product_id === productId);
     
@@ -143,7 +149,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
   useEffect(() => {
     const { status } = getProductStatus(CLUB_ID);
     setHasActiveClub(status === 'unlocked');
-  }, [userLeads]);
+  }, [userLeads, isAdmin]); // Adicionado isAdmin nas dependências
 
   const handleUnlockProduct = (product: Product) => {
     setSelectedProduct(product);
@@ -292,7 +298,16 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
         </div>
       </section>
 
-      {/* Acesso ao Fórum (Se tiver Clube) */}
+      {/* Banner de Administrador */}
+      {isAdmin && (
+        <div className="bg-brand-purple/10 border-b border-brand-purple/20 py-3 text-center -mt-8 relative z-20 backdrop-blur-sm">
+          <p className="text-xs font-black text-brand-purple uppercase tracking-widest flex items-center justify-center gap-2">
+            <Unlock size={14} /> Modo de Visualização: Administrador (Acesso Total)
+          </p>
+        </div>
+      )}
+
+      {/* Acesso ao Fórum (Se tiver Clube ou for Admin) */}
       {hasActiveClub && (
         <div className="max-w-7xl mx-auto px-4 -mt-16 mb-16 relative z-20">
           <div className="bg-gradient-to-r from-brand-purple to-brand-dark p-1 rounded-[2.5rem] shadow-2xl">
@@ -319,7 +334,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
 
       <div className={`max-w-7xl mx-auto px-4 space-y-16 ${!hasActiveClub ? 'mt-12' : ''}`}>
         
-        {/* SEÇÃO 1: MEUS MATERIAIS (COMPRADOS) */}
+        {/* SEÇÃO 1: MEUS MATERIAIS (COMPRADOS OU DESBLOQUEADOS PELO ADMIN) */}
         <div>
           <div className="flex items-center gap-4 mb-8">
             <div className="bg-green-500 text-white p-3 rounded-2xl shadow-lg shadow-green-200">
@@ -391,8 +406,8 @@ export const MyAccount: React.FC<MyAccountProps> = ({ onNavigate, user }) => {
           )}
         </div>
 
-        {/* SEÇÃO 2: VITRINE DE OPORTUNIDADES (BLOQUEADOS) */}
-        {availableProducts.length > 0 && (
+        {/* SEÇÃO 2: VITRINE DE OPORTUNIDADES (BLOQUEADOS) - SÓ APARECE SE NÃO FOR ADMIN OU SE TIVER ALGO BLOQUEADO */}
+        {availableProducts.length > 0 && !isAdmin && (
           <div>
             <div className="flex items-center gap-4 mb-8 pt-8 border-t border-brand-lilac/10">
               <div className="bg-brand-purple text-white p-3 rounded-2xl shadow-lg shadow-purple-200">
