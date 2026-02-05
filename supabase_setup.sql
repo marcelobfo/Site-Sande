@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS forum_posts (
   author_name text NOT NULL,
   author_email text NOT NULL,
   created_at timestamptz DEFAULT now(),
-  is_admin boolean DEFAULT false
+  is_admin boolean DEFAULT false,
+  reactions jsonb DEFAULT '{}'::jsonb -- Adicionado suporte a reações
 );
 
 CREATE TABLE IF NOT EXISTS forum_polls (

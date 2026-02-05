@@ -146,6 +146,7 @@ export interface ForumPost {
   author_email: string;
   created_at: string;
   is_admin: boolean;
+  reactions?: Record<string, string[]>; // Novo: Suporte a emojis
 }
 
 export interface ForumPollOption {

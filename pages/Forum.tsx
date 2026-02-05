@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, User, Clock, ArrowLeft, Loader2, BarChart2, X, Check, ThumbsUp, Trash2 } from 'lucide-react';
-import { View, ForumTopic, ForumPost, ForumPoll } from '../types';
+import { MessageSquare, Plus, Send, User, Clock, ArrowLeft, Loader2, BarChart2, X, Check, ThumbsUp, Trash2, Smile, Users, AtSign } from 'lucide-react';
+import { View, ForumTopic, ForumPost, ForumPoll, SiteContent } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface ForumProps {
   onNavigate: (view: View, id?: string) => void;
   user: any;
+  content: SiteContent;
 }
 
-export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
+export const Forum: React.FC<ForumProps> = ({ onNavigate, user, content }) => {
   const [topics, setTopics] = useState<ForumTopic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<ForumTopic | null>(null);
   const [posts, setPosts] = useState<ForumPost[]>([]);
@@ -19,8 +20,39 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
   const [newTopicData, setNewTopicData] = useState({ title: '', category: 'Geral', question: '', options: ['', ''] });
   const [poll, setPoll] = useState<any>(null);
   const [userVote, setUserVote] = useState<string | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Setup Online Users (Presence)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase.channel('forum_presence', {
+      config: {
+        presence: {
+          key: user.email,
+        },
+      },
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const newState = channel.presenceState();
+        const users: any[] = [];
+        for (const key in newState) {
+          users.push({ email: key, name: key.split('@')[0] });
+        }
+        setOnlineUsers(users);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   useEffect(() => {
     fetchTopics();
@@ -42,9 +74,13 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
 
       const postSub = supabase
         .channel(`topic:${selectedTopic.id}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'forum_posts', filter: `topic_id=eq.${selectedTopic.id}` }, payload => {
-          setPosts(current => [...current, payload.new as ForumPost]);
-          scrollToBottom();
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_posts', filter: `topic_id=eq.${selectedTopic.id}` }, payload => {
+          if (payload.eventType === 'INSERT') {
+            setPosts(current => [...current, payload.new as ForumPost]);
+            setTimeout(scrollToBottom, 100);
+          } else if (payload.eventType === 'UPDATE') {
+            setPosts(current => current.map(p => p.id === payload.new.id ? payload.new as ForumPost : p));
+          }
         })
         .subscribe();
 
@@ -88,17 +124,15 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
     if (!user) return;
 
     try {
-      // 1. Criar Tópico
       const { data: topic, error } = await supabase.from('forum_topics').insert([{
         title: newTopicData.title,
         category: newTopicData.category,
-        author_name: user.email.split('@')[0], // Nome simples baseado no email
+        author_name: user.email.split('@')[0], 
         author_email: user.email,
       }]).select().single();
 
       if (error) throw error;
 
-      // 2. Criar Enquete (se houver pergunta)
       if (newTopicData.question && newTopicData.options.every(o => o.trim() !== '')) {
         const { data: poll } = await supabase.from('forum_polls').insert([{
           topic_id: topic.id,
@@ -116,7 +150,6 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
 
       setIsCreatingTopic(false);
       setNewTopicData({ title: '', category: 'Geral', question: '', options: ['', ''] });
-      // Realtime irá atualizar a lista
     } catch (err) {
       console.error(err);
       alert('Erro ao criar tópico.');
@@ -134,10 +167,29 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
       content: newPost,
       author_name: user.email.split('@')[0],
       author_email: user.email,
-      is_admin: isAdmin
+      is_admin: isAdmin,
+      reactions: {}
     }]);
 
     setNewPost('');
+  };
+
+  const handleReaction = async (postId: string, emoji: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post || !user) return;
+
+    const currentReactions = post.reactions || {};
+    const usersReacted = currentReactions[emoji] || [];
+    
+    let newReactions;
+    if (usersReacted.includes(user.email)) {
+      newReactions = { ...currentReactions, [emoji]: usersReacted.filter(e => e !== user.email) };
+      if (newReactions[emoji].length === 0) delete newReactions[emoji];
+    } else {
+      newReactions = { ...currentReactions, [emoji]: [...usersReacted, user.email] };
+    }
+
+    await supabase.from('forum_posts').update({ reactions: newReactions }).eq('id', postId);
   };
 
   const handleVote = async (optionId: string) => {
@@ -151,11 +203,14 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
 
     if (!error) {
       setUserVote(optionId);
-      fetchPoll(selectedTopic!.id); // Atualiza contagem
+      fetchPoll(selectedTopic!.id);
     }
   };
 
-  // Funções Auxiliares para Enquete
+  const handleMention = (userName: string) => {
+    setNewPost(prev => `${prev}@${userName} `);
+  };
+
   const addOption = () => setNewTopicData({...newTopicData, options: [...newTopicData.options, '']});
   const updateOption = (idx: number, val: string) => {
     const opts = [...newTopicData.options];
@@ -168,39 +223,53 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
     return null;
   }
 
+  // Regex para destacar menções
+  const renderContentWithMentions = (content: string) => {
+    const parts = content.split(/(@[\w\.-]+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        return <span key={i} className="text-brand-purple font-black bg-brand-purple/10 px-1 rounded">{part}</span>;
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-brand-dark text-white p-6 shadow-xl sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+      {/* Header Atualizado com Logo */}
+      <div className="bg-brand-dark text-white p-4 shadow-xl sticky top-0 z-20">
+        <div className="max-w-[90rem] mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button onClick={() => onNavigate('my-account')} className="p-2 hover:bg-white/10 rounded-full transition-all"><ArrowLeft /></button>
-            <h1 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-              <MessageSquare className="text-brand-orange" /> Comunidade VIP
-            </h1>
+            <div className="flex items-center gap-3">
+               {content.logourl && <img src={content.logourl} alt="Logo" className="h-8 md:h-10 w-auto object-contain brightness-0 invert" />}
+               <h1 className="text-lg md:text-xl font-black uppercase tracking-tight flex items-center gap-2 border-l border-white/20 pl-3">
+                 <MessageSquare className="text-brand-orange" size={24} /> Comunidade VIP
+               </h1>
+            </div>
           </div>
           {!selectedTopic && (
-            <button onClick={() => setIsCreatingTopic(true)} className="bg-brand-orange px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-white hover:text-brand-orange transition-all flex items-center gap-2">
-              <Plus size={16} /> Novo Tópico
+            <button onClick={() => setIsCreatingTopic(true)} className="bg-brand-orange px-4 py-2 md:px-6 md:py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-white hover:text-brand-orange transition-all flex items-center gap-2">
+              <Plus size={16} /> <span className="hidden md:inline">Novo Tópico</span>
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex-grow max-w-7xl mx-auto w-full p-4 md:p-8 flex gap-8 h-[calc(100vh-80px)]">
+      <div className="flex-grow max-w-[90rem] mx-auto w-full p-4 md:p-6 flex gap-6 h-[calc(100vh-80px)]">
         
-        {/* Sidebar Topics List (Desktop) or Full View (Mobile if no topic selected) */}
-        <div className={`w-full md:w-1/3 bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden ${selectedTopic ? 'hidden md:flex' : 'flex'}`}>
+        {/* Sidebar Topics List */}
+        <div className={`w-full md:w-1/4 lg:w-1/5 bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden ${selectedTopic ? 'hidden lg:flex' : 'flex'}`}>
           <div className="p-6 border-b border-gray-100 bg-gray-50/50">
             <h2 className="font-black text-brand-dark uppercase tracking-widest text-xs">Discussões Recentes</h2>
           </div>
-          <div className="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-3">
+          <div className="flex-grow overflow-y-auto custom-scrollbar p-3 space-y-3">
             {loading ? <div className="flex justify-center p-4"><Loader2 className="animate-spin text-brand-purple" /></div> : 
              topics.map(topic => (
               <div 
                 key={topic.id} 
                 onClick={() => setSelectedTopic(topic)}
-                className={`p-5 rounded-2xl cursor-pointer transition-all border ${selectedTopic?.id === topic.id ? 'bg-brand-purple/5 border-brand-purple shadow-sm' : 'bg-white border-gray-100 hover:border-brand-purple/30 hover:bg-gray-50'}`}
+                className={`p-4 rounded-2xl cursor-pointer transition-all border ${selectedTopic?.id === topic.id ? 'bg-brand-purple/5 border-brand-purple shadow-sm' : 'bg-white border-gray-100 hover:border-brand-purple/30 hover:bg-gray-50'}`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest">{topic.category}</span>
@@ -214,7 +283,7 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
         </div>
 
         {/* Chat Area */}
-        <div className={`w-full md:w-2/3 bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden relative ${!selectedTopic ? 'hidden md:flex justify-center items-center' : 'flex'}`}>
+        <div className={`w-full lg:w-3/5 bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden relative ${!selectedTopic ? 'hidden md:flex justify-center items-center' : 'flex'}`}>
           {selectedTopic ? (
             <>
               {/* Chat Header */}
@@ -223,13 +292,13 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
                   <h2 className="font-black text-lg text-brand-dark leading-tight">{selectedTopic.title}</h2>
                   <p className="text-xs text-gray-500 font-medium mt-1">Iniciado por <span className="font-bold text-brand-purple">{selectedTopic.author_name}</span></p>
                 </div>
-                <button onClick={() => setSelectedTopic(null)} className="md:hidden p-2 text-gray-400"><X /></button>
+                <button onClick={() => setSelectedTopic(null)} className="lg:hidden p-2 text-gray-400"><X /></button>
               </div>
 
               {/* Chat Messages */}
               <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-6 bg-slate-50">
                 
-                {/* Enquete (Se houver) */}
+                {/* Enquete */}
                 {poll && (
                   <div className="bg-white p-6 rounded-3xl shadow-sm border border-brand-lilac/20 mb-8 max-w-lg mx-auto">
                     <h4 className="font-black text-brand-dark mb-4 flex items-center gap-2">
@@ -272,12 +341,42 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
                     </div>
                     <div className={`max-w-[80%] space-y-1 ${post.author_email === user.email ? 'items-end flex flex-col' : ''}`}>
                       <div className={`p-4 rounded-2xl text-sm font-medium leading-relaxed shadow-sm ${post.is_admin ? 'bg-brand-orange/10 border border-brand-orange/20 text-brand-dark' : post.author_email === user.email ? 'bg-brand-purple text-white rounded-tr-none' : 'bg-white border border-gray-100 rounded-tl-none'}`}>
-                        {post.content}
+                        {renderContentWithMentions(post.content)}
                       </div>
-                      <span className="text-[10px] text-gray-400 font-bold px-1">
-                        {post.is_admin && <span className="text-brand-orange mr-2">★ ADMIN</span>}
-                        {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      
+                      <div className="flex items-center gap-3 px-1">
+                         <span className="text-[10px] text-gray-400 font-bold">
+                           {post.is_admin && <span className="text-brand-orange mr-2">★ ADMIN</span>}
+                           {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                         </span>
+                         
+                         {/* Reações / Emojis */}
+                         <div className="flex gap-1">
+                            {['❤️', '👏', '😂', '🔥'].map(emoji => {
+                               const count = post.reactions?.[emoji]?.length || 0;
+                               const userReacted = post.reactions?.[emoji]?.includes(user.email);
+                               if (count === 0 && !userReacted) return null; // Mostra apenas se tiver reação ou hover (gerenciado no grupo abaixo)
+                               
+                               return (
+                                 <button 
+                                   key={emoji} 
+                                   onClick={() => handleReaction(post.id, emoji)}
+                                   className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-all ${userReacted ? 'bg-brand-purple/20 border-brand-purple' : 'bg-white border-gray-200'}`}
+                                 >
+                                   {emoji} {count > 0 ? count : ''}
+                                 </button>
+                               );
+                            })}
+                            <div className="relative group">
+                               <button className="text-gray-400 hover:text-brand-purple transition-colors p-0.5"><Smile size={14}/></button>
+                               <div className="absolute bottom-full mb-1 left-0 bg-white shadow-xl border border-gray-100 rounded-xl p-1 flex gap-1 hidden group-hover:flex z-50">
+                                  {['❤️', '👏', '😂', '🔥', '👍'].map(emoji => (
+                                    <button key={emoji} onClick={() => handleReaction(post.id, emoji)} className="hover:bg-gray-100 p-1 rounded text-lg">{emoji}</button>
+                                  ))}
+                               </div>
+                            </div>
+                         </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -291,7 +390,7 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
                     value={newPost}
                     onChange={(e) => setNewPost(e.target.value)}
                     className="flex-grow bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/10 font-medium transition-all"
-                    placeholder="Digite sua mensagem..."
+                    placeholder="Digite sua mensagem... Use @ para mencionar alguém"
                   />
                   <button type="submit" disabled={!newPost.trim()} className="bg-brand-purple text-white p-4 rounded-2xl hover:bg-brand-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <Send size={20} />
@@ -309,6 +408,39 @@ export const Forum: React.FC<ForumProps> = ({ onNavigate, user }) => {
             </div>
           )}
         </div>
+
+        {/* Sidebar Online Users (Hidden on Mobile) */}
+        <div className="hidden lg:flex w-1/5 bg-white rounded-3xl shadow-sm border border-gray-100 flex-col overflow-hidden">
+           <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+             <h2 className="font-black text-brand-dark uppercase tracking-widest text-xs flex items-center gap-2">
+               <Users size={14} className="text-green-500" /> Online ({onlineUsers.length})
+             </h2>
+           </div>
+           <div className="flex-grow overflow-y-auto custom-scrollbar p-3 space-y-2">
+              {onlineUsers.map((u, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-all group">
+                   <div className="relative">
+                      <div className="w-8 h-8 bg-brand-lilac/20 text-brand-purple rounded-full flex items-center justify-center font-black text-xs">
+                        {u.name[0].toUpperCase()}
+                      </div>
+                      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                   </div>
+                   <div className="min-w-0">
+                      <p className="text-xs font-bold text-gray-700 truncate">{u.name}</p>
+                      {/* Botão de Menção Rápida */}
+                      <button 
+                        onClick={() => handleMention(u.name)}
+                        className="text-[9px] text-brand-purple font-black uppercase tracking-wide opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 hover:underline"
+                      >
+                        <AtSign size={8} /> Mencionar
+                      </button>
+                   </div>
+                </div>
+              ))}
+              {onlineUsers.length === 0 && <p className="text-center text-xs text-gray-400 py-4 italic">Ninguém online agora.</p>}
+           </div>
+        </div>
+
       </div>
 
       {/* Modal Criar Tópico */}

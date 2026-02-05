@@ -177,7 +177,7 @@ const App: React.FC = () => {
             case 'login': return <Login onNavigate={navigate} notify={addNotification} />;
             case 'my-account': return <MyAccount onNavigate={navigate} user={user} isAdmin={isAdmin} />;
             case 'player': return <CoursePlayer productId={selectedId} onNavigate={navigate} user={user} content={content} isAdmin={isAdmin} />;
-            case 'forum': return <Forum onNavigate={navigate} user={user} />;
+            case 'forum': return <Forum onNavigate={navigate} user={user} content={content} />;
             default: return <Home onNavigate={navigate} content={content} />;
           }
         })()}
