@@ -1,14 +1,60 @@
 
-import React from 'react';
-import { GraduationCap, Instagram, Facebook, Youtube, Mail, Phone, Send, ShieldCheck, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { GraduationCap, Instagram, Facebook, Youtube, Mail, Phone, Send, ShieldCheck, Lock, Loader2 } from 'lucide-react';
 import { View, SiteContent } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface FooterProps {
   onNavigate: (view: View) => void;
   content: SiteContent;
 }
 
+const WEBHOOK_URL = 'https://atendimento-creditar-n8n.stpanz.easypanel.host/webhook/briefing';
+
 export const Footer: React.FC<FooterProps> = ({ onNavigate, content }) => {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+
+    try {
+      // 1. Salvar Lead no Supabase
+      const { error } = await supabase.from('leads').insert([{
+        email,
+        name: 'Assinante Newsletter',
+        subject: 'Newsletter',
+        message: 'Inscrição via Rodapé',
+        status: 'Novo',
+        created_at: new Date().toISOString()
+      }]);
+
+      if (error) throw error;
+
+      // 2. Enviar Webhook
+      await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          origin: 'Newsletter Rodapé',
+          subject: 'Inscrição Newsletter',
+          sent_at: new Date().toISOString()
+        })
+      });
+
+      alert('Inscrição realizada com sucesso! Em breve você receberá novidades.');
+      setEmail('');
+    } catch (err) {
+      console.error('Erro ao inscrever:', err);
+      alert('Erro ao realizar inscrição. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <footer className="bg-brand-dark text-white pt-24 pb-12 overflow-hidden relative">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-orange via-brand-purple to-brand-orange"></div>
@@ -64,10 +110,23 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, content }) => {
           <div>
             <h3 className="font-black text-xl mb-8 text-brand-orange tracking-tight uppercase">Novidades</h3>
             <p className="text-gray-400 font-bold mb-6 text-sm">Deixe seu melhor e-mail e venha protagonizar!</p>
-            <div className="relative">
-              <input placeholder="seu@email.com" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-brand-orange font-bold text-sm" />
-              <button className="absolute right-2 top-2 bg-brand-orange p-2.5 rounded-xl text-white shadow-lg"><Send size={18} /></button>
-            </div>
+            <form onSubmit={handleSubscribe} className="relative">
+              <input 
+                placeholder="seu@email.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                type="email"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-brand-orange font-bold text-sm text-white placeholder-gray-500" 
+              />
+              <button 
+                type="submit"
+                disabled={loading}
+                className="absolute right-2 top-2 bg-brand-orange p-2.5 rounded-xl text-white shadow-lg disabled:opacity-50 hover:bg-white hover:text-brand-orange transition-all"
+              >
+                {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              </button>
+            </form>
             <div className="mt-8 flex items-center gap-4 text-xs font-black text-gray-500">
               <Phone size={16} /> {content.supportwhatsapp}
             </div>
