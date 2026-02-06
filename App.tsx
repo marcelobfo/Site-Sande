@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { MessageCircle, Loader2 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieConsent } from './components/CookieConsent';
@@ -188,6 +189,9 @@ const App: React.FC = () => {
   if (currentView === 'player') {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
+        <Helmet>
+          <link rel="icon" type="image/png" href={content.faviconurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png"} />
+        </Helmet>
         <Toaster notifications={notifications} removeNotification={removeNotification} />
         {renderView()}
       </div>
@@ -197,6 +201,9 @@ const App: React.FC = () => {
   if (currentView === 'forum') {
     return (
       <div className="min-h-screen bg-gray-50 text-brand-dark">
+        <Helmet>
+          <link rel="icon" type="image/png" href={content.faviconurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png"} />
+        </Helmet>
         <Toaster notifications={notifications} removeNotification={removeNotification} />
         {renderView()}
       </div>
@@ -205,6 +212,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <Helmet>
+        <link rel="icon" type="image/png" href={content.faviconurl || "https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Sande-Almeida-Hero.png"} />
+      </Helmet>
       <Toaster notifications={notifications} removeNotification={removeNotification} />
       <Header currentView={currentView} onNavigate={navigate} content={content} user={user} isAdmin={isAdmin} />
       <main className="flex-grow">{renderView()}</main>
