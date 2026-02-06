@@ -5,6 +5,7 @@ import { Product, View, SiteContent, AsaasCustomerData } from '../types';
 import { supabase } from '../lib/supabase';
 import { SEO } from '../components/SEO';
 import { ProductCover } from '../components/ProductCover';
+import { VideoPlayer } from '../components/VideoPlayer';
 
 interface ProductDetailProps {
   productId: string | null;
@@ -206,16 +207,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onNavig
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-start">
-          {/* Coluna da Imagem */}
+          {/* Coluna da Imagem ou Video */}
           <div className="lg:sticky lg:top-24 w-full">
             <div className="bg-white p-3 rounded-[2.5rem] shadow-3xl border border-white relative">
-              <div className="w-full rounded-[2rem] aspect-square overflow-hidden relative">
-                <ProductCover 
-                  src={product.image_url} 
-                  alt={product.title}
-                  category={product.category}
-                  className={`w-full h-full object-cover ${!isPaymentActive ? 'grayscale-[0.3]' : ''}`}
-                />
+              <div className={`w-full rounded-[2rem] overflow-hidden relative ${product.featured_video_url ? 'aspect-video' : 'aspect-square'}`}>
+                {product.featured_video_url ? (
+                   <VideoPlayer 
+                     url={product.featured_video_url} 
+                     type={product.featured_video_type} 
+                     title={product.title}
+                   />
+                ) : (
+                  <ProductCover 
+                    src={product.image_url} 
+                    alt={product.title}
+                    category={product.category}
+                    className={`w-full h-full object-cover ${!isPaymentActive ? 'grayscale-[0.3]' : ''}`}
+                  />
+                )}
               </div>
               {!isPaymentActive && (
                 <div className="absolute bottom-8 right-8 bg-gray-800 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
