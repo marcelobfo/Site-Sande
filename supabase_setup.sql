@@ -23,7 +23,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS forum_active boolean DEFAULT false
 
 -- 3. Vídeo em Destaque do Produto (Instruções)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_video_url text;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_video_type text DEFAULT 'youtube'; -- Novo campo
+ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_video_type text DEFAULT 'youtube';
 
 -- 4. Função de Segurança para Gerenciar Admins
 CREATE OR REPLACE FUNCTION set_admin_role(target_email text, is_admin boolean)
@@ -46,7 +46,7 @@ BEGIN
 END;
 $$;
 
--- 5. Estrutura do Fórum (Comunidade Global)
+-- 5. Estrutura do Fórum
 CREATE TABLE IF NOT EXISTS forum_topics (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title text NOT NULL,
@@ -68,7 +68,6 @@ CREATE TABLE IF NOT EXISTS forum_posts (
   reactions jsonb DEFAULT '{}'::jsonb
 );
 
--- CORREÇÃO CRÍTICA: Garante que as colunas existam mesmo se a tabela já foi criada antes
 ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS reactions jsonb DEFAULT '{}'::jsonb;
 ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS is_admin boolean DEFAULT false;
 
@@ -93,7 +92,6 @@ CREATE TABLE IF NOT EXISTS forum_poll_votes (
   UNIQUE(poll_id, user_email)
 );
 
--- 6. Estrutura da Comunidade Específica do Produto
 CREATE TABLE IF NOT EXISTS product_forum_messages (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   product_id text NOT NULL,
@@ -105,10 +103,8 @@ CREATE TABLE IF NOT EXISTS product_forum_messages (
   reply_to uuid REFERENCES product_forum_messages(id)
 );
 
--- CORREÇÃO CRÍTICA: Garante que as colunas existam na tabela de mensagens do produto
 ALTER TABLE product_forum_messages ADD COLUMN IF NOT EXISTS reactions jsonb DEFAULT '{}'::jsonb;
 
--- 7. Blog Posts (Criação da Tabela e Inserção de Conteúdo)
 CREATE TABLE IF NOT EXISTS blog_posts (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title text NOT NULL,
@@ -120,7 +116,7 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   created_at timestamptz DEFAULT now()
 );
 
--- Habilitar Realtime (Configuração Geral)
+-- 6. Habilitar Realtime
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_topics') THEN
@@ -140,54 +136,7 @@ BEGIN
   END IF;
 END $$;
 
--- 8. Inserção de Artigos do Blog (Conteúdo Rico)
-DELETE FROM blog_posts; 
-
-INSERT INTO blog_posts (title, category, author, image_url, publish_date, content)
-VALUES
-(
-  '3 Metodologias Ativas para aplicar amanhã na sua aula',
-  'Metodologias Ativas',
-  'Sande Almeida',
-  'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=1000&auto=format&fit=crop',
-  CURRENT_DATE,
-  '# Transforme sua aula sem complicação...'
-),
-(
-  'O Segredo do Canva: Materiais Pedagógicos Irresistíveis',
-  'Dicas Práticas',
-  'Sande Almeida',
-  'https://images.unsplash.com/photo-1626785774573-4b799312c95d?q=80&w=1000&auto=format&fit=crop',
-  CURRENT_DATE - 2,
-  '# Por que o design importa na educação?...'
-),
-(
-  'Engajamento: Como conquistar a atenção da "Geração TikTok"',
-  'Inovação',
-  'Sande Almeida',
-  'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop',
-  CURRENT_DATE - 5,
-  '# A batalha pela atenção...'
-);
-
--- 9. Correção e Vinculação de Produtos
-INSERT INTO products (id, title, description, price, category, image_url, status, payment_active, forum_active)
-VALUES (
-  '9e30a57d-14a0-4386-8a5f-0f8a85f40000',
-  'Clube Professora Protagonista',
-  'Acesso anual completo a todos os materiais, aulas de edição e suporte exclusivo. Transforme sua prática pedagógica com recursos ilimitados.',
-  397.00,
-  'Assinatura',
-  'https://metodoprotagonizar.com.br/wp-content/uploads/2024/05/Banner-Clube.png',
-  'published',
-  true,
-  true
-) ON CONFLICT (id) DO NOTHING;
-
-UPDATE leads SET product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000' WHERE product_id = 'CLUBE-ANUAL';
-
--- 10. ATUALIZAÇÃO CRÍTICA: Campos de Faturamento na Tabela de Leads
--- Cria tabela se não existir
+-- 7. Tabela de Leads e Correções
 CREATE TABLE IF NOT EXISTS leads (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamptz DEFAULT now(),
@@ -196,11 +145,9 @@ CREATE TABLE IF NOT EXISTS leads (
   status text DEFAULT 'Novo'
 );
 
--- Garante que todos os campos utilizados no checkout existam
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp text;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS subject text;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS message text;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS status text DEFAULT 'Novo';
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS product_id text;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS product_name text;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS value numeric;
@@ -213,10 +160,15 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS province text;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS city text;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS complement text;
 
--- Habilitar Realtime especificamente para Leads (para o Kanban funcionar ao vivo)
+-- Habilitar Realtime especificamente para Leads
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'leads') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE leads;
   END IF;
 END $$;
+
+-- 8. CORREÇÃO DE LEADS FANTASMAS (Normaliza status)
+UPDATE leads SET status = 'Novo' WHERE status IS NULL OR status = '';
+UPDATE leads SET status = 'Aguardando Pagamento' WHERE status ILIKE '%pending%' OR status ILIKE '%aguardando%';
+UPDATE leads SET status = 'Pago' WHERE status ILIKE '%paid%' OR status ILIKE '%pago%';

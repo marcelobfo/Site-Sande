@@ -33,9 +33,10 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
   const [isDraggingOver, setIsDraggingOver] = useState<string | null>(null);
 
   const updateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
+    // Optimistic UI update handled by parent fetch, but we alert success
     const { error } = await supabase.from('leads').update({ status: newStatus }).eq('id', leadId);
     if (!error) {
-      onUpdate();
+      onUpdate(); // Trigger parent refresh immediately
       if (selectedLead?.id === leadId) setSelectedLead(prev => prev ? { ...prev, status: newStatus } : null);
       notify('success', 'Status Atualizado', `Lead movido para: ${newStatus}`);
     } else {
@@ -55,7 +56,6 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
   const onDragStart = (e: React.DragEvent, id: string) => {
     setDraggedLeadId(id);
     e.dataTransfer.setData('leadId', id);
-    // Efeito visual de transparência durante o arraste
     if (e.currentTarget instanceof HTMLElement) {
       e.currentTarget.style.opacity = '0.5';
     }
@@ -84,94 +84,105 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
     setDraggedLeadId(null);
   };
 
+  // Helper para filtrar leads. Se o lead tiver um status estranho (não listado), joga para 'Novo'.
+  const getLeadsByStatus = (status: LeadStatus) => {
+    if (status === 'Novo') {
+      return leads.filter(l => l.status === 'Novo' || !STATUS_OPTIONS.includes(l.status as any));
+    }
+    return leads.filter(l => l.status === status);
+  };
+
   return (
-    // Altura fixa calculada (100vh - cabeçalho) para evitar scroll na página inteira
     <div className="flex gap-6 overflow-x-auto pb-4 pt-2 h-[calc(100vh-240px)] custom-scrollbar-h items-start">
-      {STATUS_OPTIONS.map(status => (
-        <div 
-          key={status} 
-          onDragOver={(e) => onDragOver(e, status)}
-          onDrop={(e) => onDrop(e, status)}
-          // Adicionado h-full para a coluna ocupar a altura do container pai
-          className={`p-5 rounded-[2.5rem] min-w-[320px] max-w-[320px] flex flex-col h-full border transition-all duration-300 ${
-            isDraggingOver === status 
-            ? 'bg-brand-purple/10 border-brand-purple border-dashed scale-[1.02]' 
-            : 'bg-gray-100/50 border-gray-200/50'
-          }`}
-        >
-          {/* Header da Coluna (Fixo) */}
-          <div className="flex justify-between items-center mb-4 px-3 shrink-0">
-            <div className="flex items-center gap-2">
-               <div className={`w-3 h-3 rounded-full ${getStatusColor(status)} shadow-sm`}></div>
-               <h4 className="font-black text-[11px] uppercase text-brand-dark tracking-widest">{status}</h4>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-gray-400">
-                {leads.filter(l => l.status === status).length}
-              </span>
-              {leads.filter(l => l.status === status).some(l => l.value) && (
-                <span className="bg-white px-2 py-0.5 rounded-full text-[9px] font-black text-brand-purple border border-gray-100 shadow-sm">
-                  R$ {leads.filter(l => l.status === status).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0).toLocaleString()}
+      {STATUS_OPTIONS.map(status => {
+        const columnLeads = getLeadsByStatus(status);
+        const totalValue = columnLeads.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+
+        return (
+          <div 
+            key={status} 
+            onDragOver={(e) => onDragOver(e, status)}
+            onDrop={(e) => onDrop(e, status)}
+            className={`p-5 rounded-[2.5rem] min-w-[320px] max-w-[320px] flex flex-col h-full border transition-all duration-300 ${
+              isDraggingOver === status 
+              ? 'bg-brand-purple/10 border-brand-purple border-dashed scale-[1.02]' 
+              : 'bg-gray-100/50 border-gray-200/50'
+            }`}
+          >
+            {/* Header da Coluna */}
+            <div className="flex justify-between items-center mb-4 px-3 shrink-0">
+              <div className="flex items-center gap-2">
+                 <div className={`w-3 h-3 rounded-full ${getStatusColor(status)} shadow-sm`}></div>
+                 <h4 className="font-black text-[11px] uppercase text-brand-dark tracking-widest">{status}</h4>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-gray-400">
+                  {columnLeads.length}
                 </span>
-              )}
+                {totalValue > 0 && (
+                  <span className="bg-white px-2 py-0.5 rounded-full text-[9px] font-black text-brand-purple border border-gray-100 shadow-sm">
+                    R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Área de Cards com Scroll Vertical */}
-          <div className="space-y-4 flex-grow px-1 overflow-y-auto custom-scrollbar-y pr-2">
-            {leads.filter(l => l.status === status).map(lead => (
-              <div 
-                key={lead.id} 
-                draggable 
-                onDragStart={(e) => onDragStart(e, lead.id)}
-                onDragEnd={onDragEnd}
-                onClick={() => setSelectedLead(lead)} 
-                className={`bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group relative overflow-hidden flex flex-col ${
-                  draggedLeadId === lead.id ? 'ring-2 ring-brand-purple border-transparent' : ''
-                }`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                   <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest flex items-center gap-1">
-                     <Calendar size={10} /> {new Date(lead.created_at).toLocaleDateString()}
-                   </p>
-                   <GripVertical size={14} className="text-gray-200 group-hover:text-gray-300 transition-colors" />
-                </div>
-
-                <h5 className="font-black text-brand-dark text-base leading-tight group-hover:text-brand-purple transition-colors mb-4 line-clamp-2">
-                  {lead.name}
-                </h5>
-                
-                <div className="flex items-center justify-between mt-auto gap-2">
-                  <div className="flex flex-col gap-1.5 min-w-0 flex-grow">
-                    {lead.product_name && (
-                      <div className="bg-gray-50 px-3 py-1.5 rounded-xl flex items-center gap-2 border border-gray-100 w-fit max-w-full">
-                        <Package size={10} className="text-gray-400 shrink-0" />
-                        <span className="text-[8px] font-black text-gray-500 truncate uppercase">{lead.product_name}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 truncate pl-1">
-                      <Mail size={10} className="shrink-0" /> {lead.email}
-                    </div>
+            {/* Lista de Cards */}
+            <div className="space-y-4 flex-grow px-1 overflow-y-auto custom-scrollbar-y pr-2">
+              {columnLeads.map(lead => (
+                <div 
+                  key={lead.id} 
+                  draggable 
+                  onDragStart={(e) => onDragStart(e, lead.id)}
+                  onDragEnd={onDragEnd}
+                  onClick={() => setSelectedLead(lead)} 
+                  className={`bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group relative overflow-hidden flex flex-col ${
+                    draggedLeadId === lead.id ? 'ring-2 ring-brand-purple border-transparent opacity-50' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                     <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest flex items-center gap-1">
+                       <Calendar size={10} /> {new Date(lead.created_at).toLocaleDateString()}
+                     </p>
+                     <GripVertical size={14} className="text-gray-200 group-hover:text-gray-300 transition-colors" />
                   </div>
 
-                  {lead.value && (
-                    <div className="flex flex-col items-end shrink-0">
-                      <span className="text-[11px] font-black text-brand-purple bg-brand-purple/5 px-3 py-1.5 rounded-2xl border border-brand-purple/10 flex items-center gap-1">
-                        <DollarSign size={10} />
-                        {Number(lead.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
+                  <h5 className="font-black text-brand-dark text-base leading-tight group-hover:text-brand-purple transition-colors mb-4 line-clamp-2">
+                    {lead.name}
+                  </h5>
+                  
+                  <div className="flex items-center justify-between mt-auto gap-2">
+                    <div className="flex flex-col gap-1.5 min-w-0 flex-grow">
+                      {lead.product_name && (
+                        <div className="bg-gray-50 px-3 py-1.5 rounded-xl flex items-center gap-2 border border-gray-100 w-fit max-w-full">
+                          <Package size={10} className="text-gray-400 shrink-0" />
+                          <span className="text-[8px] font-black text-gray-500 truncate uppercase">{lead.product_name}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 truncate pl-1">
+                        <Mail size={10} className="shrink-0" /> {lead.email}
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(status)}`}></div>
-              </div>
-            ))}
-            {/* Espaçador no final para não cortar o último card */}
-            <div className="h-2"></div>
+                    {lead.value && (
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-[11px] font-black text-brand-purple bg-brand-purple/5 px-3 py-1.5 rounded-2xl border border-brand-purple/10 flex items-center gap-1">
+                          <DollarSign size={10} />
+                          {Number(lead.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Indicador lateral de status */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(lead.status as LeadStatus || 'Novo')}`}></div>
+                </div>
+              ))}
+              <div className="h-2"></div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {selectedLead && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-brand-dark/80 backdrop-blur-md">
@@ -238,42 +249,6 @@ export const AdminLeads: React.FC<AdminLeadsProps> = ({ leads, onUpdate, notify 
           </div>
         </div>
       )}
-
-      <style>{`
-        /* Scrollbar Horizontal (Quadro Inteiro) */
-        .custom-scrollbar-h::-webkit-scrollbar {
-          height: 10px;
-        }
-        .custom-scrollbar-h::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 20px;
-          margin: 0 40px;
-        }
-        .custom-scrollbar-h::-webkit-scrollbar-thumb {
-          background: #7E22CE20;
-          border-radius: 20px;
-          border: 2px solid #f1f1f1;
-        }
-        .custom-scrollbar-h::-webkit-scrollbar-thumb:hover {
-          background: #7E22CE50;
-        }
-
-        /* Scrollbar Vertical (Dentro das Colunas) */
-        .custom-scrollbar-y::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar-y::-webkit-scrollbar-track {
-          background: transparent;
-          margin: 10px 0;
-        }
-        .custom-scrollbar-y::-webkit-scrollbar-thumb {
-          background: #CBD5E1;
-          border-radius: 20px;
-        }
-        .custom-scrollbar-y::-webkit-scrollbar-thumb:hover {
-          background: #94A3B8;
-        }
-      `}</style>
     </div>
   );
 };
