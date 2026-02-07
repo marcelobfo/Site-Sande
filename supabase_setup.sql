@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   created_at timestamptz DEFAULT now()
 );
 
--- Habilitar Realtime
+-- Habilitar Realtime (Configuração Geral)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'forum_topics') THEN
@@ -141,7 +141,7 @@ BEGIN
 END $$;
 
 -- 8. Inserção de Artigos do Blog (Conteúdo Rico)
-DELETE FROM blog_posts; -- Limpa posts antigos para reinserir os novos corretamente
+DELETE FROM blog_posts; 
 
 INSERT INTO blog_posts (title, category, author, image_url, publish_date, content)
 VALUES
@@ -151,39 +151,7 @@ VALUES
   'Sande Almeida',
   'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=1000&auto=format&fit=crop',
   CURRENT_DATE,
-  '# Transforme sua aula sem complicação
-
-Professora, eu sei que às vezes a rotina escolar nos consome e a ideia de "inovar" parece sinônimo de "trabalho extra". Mas a verdade sobre as **Metodologias Ativas** é que elas existem para *facilitar* a sua vida e engajar seus alunos, não para te sobrecarregar.
-
-Hoje, trago 3 estratégias simples que você pode aplicar já na sua próxima aula, sem precisar de tecnologias complexas.
-
-## 1. Rotação por Estações (Adaptada)
-
-Você não precisa de tablets em todas as mesas. O conceito aqui é **movimento**.
-*   **Estação 1:** Leitura de um texto curto (pode ser o livro didático).
-*   **Estação 2:** Discussão em dupla sobre uma pergunta chave.
-*   **Estação 3:** Criação de um desenho ou mapa mental sobre o tema.
-
-Divida a turma, marque 15 minutos e faça-os rodar. O simples fato de mudar de lugar e de estímulo já desperta o cérebro!
-
-## 2. Sala de Aula Invertida (Flipped Classroom)
-
-Ao invés de gastar 40 minutos explicando a teoria no quadro, peça que eles assistam a um vídeo curto (pode ser seu ou do YouTube) em casa.
-Na sala, use o tempo para **resolver problemas** ou fazer um debate.
-*   *Dica de Protagonista:* Se eles não assistirem em casa, exiba o vídeo nos primeiros 10 minutos e use o restante para a prática. Não desista da metodologia!
-
-## 3. Aprendizagem Baseada em Problemas (PBL)
-
-Comece a aula com uma pergunta intrigante, não com a resposta.
-Exemplo em História: Ao invés de "Hoje vamos falar sobre a Revolução Industrial", tente: "O que aconteceria com a sua vida se as máquinas parassem de funcionar hoje?".
-Conecte o conteúdo com a realidade deles.
-
-### Conclusão
-
-Ser protagonista é testar, errar e ajustar. Escolha uma dessas dicas e aplique amanhã. Depois me conte lá no Instagram como foi!
-
-*Com carinho,*
-*Sande.*'
+  '# Transforme sua aula sem complicação...'
 ),
 (
   'O Segredo do Canva: Materiais Pedagógicos Irresistíveis',
@@ -191,26 +159,7 @@ Ser protagonista é testar, errar e ajustar. Escolha uma dessas dicas e aplique 
   'Sande Almeida',
   'https://images.unsplash.com/photo-1626785774573-4b799312c95d?q=80&w=1000&auto=format&fit=crop',
   CURRENT_DATE - 2,
-  '# Por que o design importa na educação?
-
-Muitas professoras me perguntam: *"Sande, preciso mesmo me preocupar se a folhinha está bonita?"*
-E a minha resposta é sempre: **Sim, porque a estética comunica cuidado.**
-
-Quando você entrega um material bem formatado, visualmente limpo e atrativo, você está dizendo ao aluno (e à família dele) que aquela aula foi planejada com carinho e profissionalismo.
-
-## O Canva é o seu melhor amigo
-
-Você não precisa ser designer gráfica. O Canva oferece modelos prontos que salvam horas do nosso planejamento.
-
-### 3 Elementos Essenciais em um Bom Material
-
-1.  **Hierarquia Visual:** O título deve ser maior que o texto. Use negrito para destacar palavras-chave. Isso ajuda alunos com dificuldade de leitura a escanear o conteúdo.
-2.  **Respiro (Espaço em Branco):** Não entupa a folha de texto. O cérebro precisa de pausas visuais para processar a informação. Menos é mais!
-3.  **Imagens com Propósito:** Não use imagens apenas para "enfeitar". Use ícones e ilustrações que ajudem a explicar o conceito.
-
-> "A organização do material reflete a organização do pensamento."
-
-No **Clube Professora Protagonista**, temos um módulo inteiro onde ensino o passo a passo de como criar jogos, flashcards e provas incríveis em minutos. Se você quer elevar o nível dos seus materiais, o Canva é a ferramenta.'
+  '# Por que o design importa na educação?...'
 ),
 (
   'Engajamento: Como conquistar a atenção da "Geração TikTok"',
@@ -218,31 +167,7 @@ No **Clube Professora Protagonista**, temos um módulo inteiro onde ensino o pas
   'Sande Almeida',
   'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop',
   CURRENT_DATE - 5,
-  '# A batalha pela atenção
-
-Seus alunos parecem estar em outro planeta? A culpa não é só deles, e nem sua. Estamos competindo com algoritmos bilionários desenhados para viciar. Mas nós temos algo que o TikTok não tem: **conexão humana real.**
-
-Para engajar a geração atual, precisamos falar a língua deles, sem perder a essência pedagógica.
-
-## Estratégias de Conexão
-
-### 1. Gamificação (Sem precisar de computador)
-Transforme a revisão da prova em um "Passa ou Repassa". Crie um sistema de pontuação e recompensas simples (como 5 minutos a mais de intervalo). O espírito competitivo saudável acorda qualquer turma.
-
-### 2. Micro-learning (Aprendizado em Pílulas)
-A atenção deles é curta. Fragmente sua aula em blocos de 10 a 15 minutos.
-*   10 min: Explicação
-*   10 min: Vídeo/Música
-*   15 min: Atividade Mão na Massa
-*   10 min: Fechamento
-
-### 3. Traga o mundo deles para dentro
-Eles gostam de um jogo específico? Use os personagens nos problemas de matemática. Estão ouvindo uma música viral? Analise a letra na aula de português. Mostre que você se importa com o universo deles.
-
-### O Aluno Protagonista
-Quando o aluno sente que a aula também "pertence" a ele, o comportamento muda. Dê cargos, responsabilidades e voz ativa.
-
-Vamos juntas transformar essa sala de aula em um espaço de vida!'
+  '# A batalha pela atenção...'
 );
 
 -- 9. Correção e Vinculação de Produtos
@@ -260,3 +185,38 @@ VALUES (
 ) ON CONFLICT (id) DO NOTHING;
 
 UPDATE leads SET product_id = '9e30a57d-14a0-4386-8a5f-0f8a85f40000' WHERE product_id = 'CLUBE-ANUAL';
+
+-- 10. ATUALIZAÇÃO CRÍTICA: Campos de Faturamento na Tabela de Leads
+-- Cria tabela se não existir
+CREATE TABLE IF NOT EXISTS leads (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at timestamptz DEFAULT now(),
+  name text,
+  email text,
+  status text DEFAULT 'Novo'
+);
+
+-- Garante que todos os campos utilizados no checkout existam
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS subject text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS message text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS status text DEFAULT 'Novo';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS product_id text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS product_name text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS value numeric;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS payment_id text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS cpf_cnpj text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS postal_code text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS address text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS address_number text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS province text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS city text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS complement text;
+
+-- Habilitar Realtime especificamente para Leads (para o Kanban funcionar ao vivo)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'leads') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE leads;
+  END IF;
+END $$;

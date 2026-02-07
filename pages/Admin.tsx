@@ -52,6 +52,22 @@ export const Admin: React.FC<AdminProps> = ({ content, onUpdate, onNavigate, not
   useEffect(() => {
     fetchAllData();
     setForm({ ...content, homeherotitlesize: content.homeherotitlesize ?? 6.5, clubesalesactive: content.clubesalesactive !== false });
+
+    // Configuração de Realtime para Leads
+    let channel: any;
+    if (activeTab === 'leads') {
+      channel = supabase
+        .channel('admin_leads_realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+          // Pequeno delay para garantir que o banco processou a transação
+          setTimeout(fetchAllData, 500); 
+        })
+        .subscribe();
+    }
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [content, activeTab]);
 
   const fetchAllData = async () => {
